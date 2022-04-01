@@ -142,7 +142,7 @@ must be changed to the ones where the primary server is running on.
 ### Authors
 
 * **Rodrigo Gomes** - [rodrigo1110](https://github.com/rodrigo1110)
-* **Marta Brites** 
+* **Marta Brites**  - [mabrites2210](https://github.com/mabrites2210)
 * **Larissa Tomaz** - [Larissa-Tomaz](https://github.com/Larissa-Tomaz)
 
 ### License

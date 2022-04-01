@@ -2,5 +2,6 @@
 client/target/
 server/target/
 contract/target/
+crypto/target
 *.class
 *.iml

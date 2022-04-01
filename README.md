@@ -141,7 +141,7 @@ must be changed to the ones where the primary server is running on.
 
 ### Authors
 
-* **Rodrigo Gomes** 
+* **Rodrigo Gomes** - [rodrigo1110](https://github.com/rodrigo1110)
 * **Marta Brites** 
 * **Larissa Tomaz** - [Larissa-Tomaz](https://github.com/Larissa-Tomaz)
 

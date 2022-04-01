@@ -104,28 +104,6 @@ $ cd client
 $ mvn exec:java
 ```
 
-### Testing
-
-Explain how to run the automated tests for this system.
-
-Give users explicit instructions on how to run all necessary tests.
-Explain the libraries, such as JUnit, used for testing your software and supply all necessary commands.
-
-Explain what these tests test and why
-
-```
-Give an example command
-```
-
-## Demo
-
-Give a tour of the best features of the application.
-Add screenshots when relevant.
-
-## Deployment
-
-In order to host the system in a live environment, there are some adjustments to be made.
-
 ### Primary Server
 Change the environment variables with the details of the production environment:
 - Location of the database (host and port);

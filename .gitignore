@@ -1,0 +1,6 @@
+.idea/
+client/target/
+server/target/
+contract/target/
+*.class
+*.iml

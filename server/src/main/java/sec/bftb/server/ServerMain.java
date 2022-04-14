@@ -4,12 +4,16 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
+import sec.bftb.server.exceptions.ErrorMessage;
+import sec.bftb.server.exceptions.ServerException;
+
+
 
 public class ServerMain {
 
 	static Logger logger;
 
-	public static void main(String[] args) {
+	public static void main(String[] args){
 		logger = new Logger("Server", "Main");
 		logger.log("Starting server...");
 		System.out.println(ServerMain.class.getSimpleName());
@@ -38,7 +42,7 @@ public class ServerMain {
 
 			server.awaitTermination();
 			
-		} catch (InterruptedException | IOException e) {
+		} catch (InterruptedException | IOException | ServerException e) {
 			logger.log("Error on server start: " + e.getMessage());
 		}
 		

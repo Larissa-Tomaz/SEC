@@ -4,6 +4,7 @@ import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
 import sec.bftb.grpc.Contract.*;
+import sec.bftb.server.exceptions.ServerException;
 import sec.bftb.grpc.BFTBankingGrpc;
 
 import static io.grpc.Status.INVALID_ARGUMENT;
@@ -15,7 +16,7 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
     private final int serverPort;
     private final Logger logger;
 
-	public ServerServiceImpl(int serverPort) throws IOException {
+	public ServerServiceImpl(int serverPort) throws IOException, ServerException{
         this.server = new Server(serverPort);
         this.serverPort = serverPort;
         this.logger = new Logger("Server", "Service");

@@ -18,6 +18,7 @@
         <mainClass>sec.bftb.client.ClientMain</mainClass>
 		<server.host>localhost</server.host>
 		<server.port>8080</server.port>
+		<maxFaults>1</maxFaults>
     </properties>
 
      <dependencies>
@@ -67,6 +68,7 @@
 					<arguments>
 						<argument>${server.host}</argument>
 						<argument>${server.port}</argument>
+						<argument>${maxFaults}</argument>
 					</arguments>
 				</configuration>
 			</plugin>

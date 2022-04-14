@@ -3,11 +3,16 @@ package sec.bftb.server;
 import org.apache.ibatis.jdbc.ScriptRunner;
 
 import sec.bftb.grpc.Contract.*;
+import sec.bftb.server.exceptions.ErrorMessage;
+import sec.bftb.server.exceptions.ServerException;
 import sec.bftb.grpc.BFTBankingGrpc;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -19,46 +24,59 @@ import java.util.*;
 public class ServerRepo {
 
     private final Logger logger;
-    private final String dbUrl;
+    private Properties props;
+    /*private final String dbUrl;
     private final String dbUsername;
     private final String dbPassword;
-    private final String dbDir;
+    private final String dbDir;*/
+
     private Connection connection = null;
     private PreparedStatement statement = null;
     private ResultSet resultSet = null;
 
-    public ServerRepo(int port) {
-        this.logger = new Logger("Server", "DB");
-        this.dbUrl = System.getenv("DB_URL");
-        this.dbUsername = System.getenv("DB_USERNAME");
-        this.dbPassword = System.getenv("DB_PASSWORD");
-        this.dbDir = System.getenv("DB_DIR");
+    public ServerRepo(int serverId) throws ServerException {
+        this.logger = new Logger("Server", "SQL");
 
-        try {
-            connection = this.newConnection();
+        Properties prop = new Properties();
+        String databaseUrl = "";
+        try (var file = new FileInputStream("resources/database.properties")) {
+            prop.load(file);
 
-            ScriptRunner scriptRunner = new ScriptRunner(connection);
-            scriptRunner.setLogWriter(null);
-            scriptRunner.runScript(new BufferedReader(new FileReader(this.dbDir)));
-            this.logger.log("Database structure created successfully!");
-        } catch (SQLException | FileNotFoundException e) {
-            this.logger.log(e.getMessage());
-        }
-        finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) { 
-                    /* Ignored */}
+            //Set correct url for this replica
+            databaseUrl = prop.getProperty("url").substring(0, prop.getProperty("url").length() - 8) + "bftb_db" + serverId;
+
+            //Create server database if it does not exist
+            try (Connection connection = DriverManager.getConnection(prop.getProperty("url"), prop);
+                 Statement stmt = connection.createStatement()) {
+                stmt.execute("CREATE DATABASE bftb_db" + serverId);
+                logger.log("Database created!");
+
+                try (Connection con = DriverManager.getConnection(databaseUrl, prop)) {
+                    ScriptRunner scriptRunner = new ScriptRunner(con);
+                    scriptRunner.setLogWriter(null);
+                    scriptRunner.runScript(new BufferedReader(new FileReader(System.getProperty("user.dir") + "/../Schema/schema.sql")));
+                   
+                } catch (Exception e) {
+                    logger.log(e.getMessage());
+                }
             }
+        } catch (FileNotFoundException e) {
+            logger.log("Database properties file not found.");
+            throw new ServerException(ErrorMessage.FAILED_DB_CONNECTION);
+        } catch (IOException e) {
+            logger.log("IO error reading the database properties file.");
+            throw new ServerException(ErrorMessage.FAILED_DB_CONNECTION);
+        } catch (SQLException ignored) {
         }
+        prop.setProperty("url", databaseUrl);
+        this.props = prop;
     }
 
     private Connection newConnection() throws SQLException {
-        return DriverManager.getConnection(this.dbUrl, this.dbUsername, this.dbPassword);
+        return DriverManager.getConnection(this.props.getProperty("url"), this.props);
     }
 
-    private void closeConnection(){
+    /*private void closeConnection(){
         if (connection != null) {
             try {
                 connection.close();
@@ -82,7 +100,7 @@ public class ServerRepo {
                 this.logger.log(e.getMessage());
             }
         }
-    }
+    }*/
 
     public void openAccount(String pubKey, Float balance) throws SQLException {
         try {
@@ -93,7 +111,7 @@ public class ServerRepo {
             statement.setFloat(2, balance);
             statement.executeUpdate();
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -112,7 +130,7 @@ public class ServerRepo {
                 return "-1";
             }
         } finally{
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -131,7 +149,7 @@ public class ServerRepo {
                 return "-1";
             }
         } finally{
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -159,7 +177,7 @@ public class ServerRepo {
             return movements;
 
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -208,7 +226,7 @@ public class ServerRepo {
             return movements;
 
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
     
@@ -226,7 +244,7 @@ public class ServerRepo {
             statement.setString(5, transferStatus);
             statement.executeUpdate();
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -262,7 +280,7 @@ public class ServerRepo {
             return 0;
 
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -281,7 +299,7 @@ public class ServerRepo {
                 return -1; 
             }
         } finally{
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -295,7 +313,7 @@ public class ServerRepo {
             statement.setString(2, pubKey);
             statement.executeUpdate();
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 
@@ -312,7 +330,7 @@ public class ServerRepo {
                 return -1;
     
         } finally {
-            closeConnection();
+            //closeConnection();
         }
     }
 }

@@ -20,7 +20,7 @@ public class ServerFrontend {
 
     public PingResponse ping(PingRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ping(request); }
 
-    public openAccountResponse openAccount(openAccountRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).openAccount(request); }
+    public void openAccount(openAccountRequest request) { stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).openAccount(request); }
 
     public sendAmountResponse sendAmount(sendAmountRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).sendAmount(request); }
 

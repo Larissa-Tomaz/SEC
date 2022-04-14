@@ -11,7 +11,8 @@ public enum ErrorMessage {
     NOT_ENOUGH_BALANCE("The account balance is not sufficient "),
     NO_SUCH_TRANSFER("Transfer not found"),
     INVALID_STATUS("Transfer already accepted"),
-    INVALID_RECEIVER("User is not the right receiver of the transfer");
+    INVALID_RECEIVER("User is not the right receiver of the transfer"),
+    FAILED_DB_CONNECTION("Failed to establish connection to database");
 
     
     public final String label;

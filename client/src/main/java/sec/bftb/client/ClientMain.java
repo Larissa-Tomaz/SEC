@@ -24,21 +24,29 @@ public class ClientMain {
 			System.out.printf("arg[%d] = %s%n", i, args[i]);
 		}
 
-		if (args.length != 2) {
-			logger.log("Invalid Number of Arguments. Must be two: host port");
+		if (args.length != 3) {
+			logger.log("Invalid Number of Arguments. Must be two: host base_port Max_Byzantine_Faults");
 			myObj.close();
 			return;
 		} 
 
 		final String host = args[0];
-		final int port = Integer.parseInt(args[1]);
-		final String target = host + ":" + port;
+		final int base_port = Integer.parseInt(args[1]);
+		final int maxByzantineFaults = Integer.parseInt(args[2]);
+		int numberOfServers = 0;
+		if(maxByzantineFaults <= 0){
+			logger.log("Maximum number of byzantine faults tolerated must be greater than 0.");
+			myObj.close();
+			return;
+		}
+		numberOfServers = (maxByzantineFaults * 2) + 1; //Probably calculate N differently later
+		final String target = host + ":" + base_port; //Delete later
 
 		String[] command;
 		String str;
 
 		try{
-			Client user = new Client(target);
+			Client user = new Client(host, base_port, target, numberOfServers);//Delete target later
 
 			System.out.println("Type 'help' to see avaliable operations.");
 

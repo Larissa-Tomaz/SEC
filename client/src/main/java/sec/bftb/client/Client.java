@@ -21,14 +21,21 @@ import sec.bftb.grpc.Contract.*;
 public class Client {
 
     private String target;
+    private String host;
+    private int basePort;
+    private int numberOfServers;
+    private int cont;
     private Key privateKey, serverPublicKey;
     private final Logger logger;
     private ServerFrontend frontend;
     private Map<Integer, List<Integer>> nonces = new TreeMap<>();
 
    
-    public Client(String _target){
+    public Client(String _host, int base_port, String _target, int number_of_servers){ //Remove target later
         target = _target;
+        host = _host;
+        basePort = base_port;
+        numberOfServers = number_of_servers;
         logger = new Logger("Client", "App");
     }
 
@@ -76,12 +83,26 @@ public class Client {
 
 		openAccountRequest request = openAccountRequest.newBuilder()
         .setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
-        .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();     
+        .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();
+        
+        ServerObserver<openAccountResponse> serverObs = new ServerObserver<openAccountResponse>();
 
-        frontend = new ServerFrontend(target);
-		openAccountResponse response = frontend.openAccount(request);
-        frontend.close();
-        if(response.getSequenceNumber() != sequenceNumber + 1){
+        for(cont = 0; cont <= numberOfServers; cont++){
+            frontend = new ServerFrontend(target);
+		    frontend.openAccount(request);
+            frontend.close();
+        }
+
+        
+        while(serverObs.getResponseCollector().size() < numberOfServers) //Might have to add lock to serverObs later
+            Thread.sleep(1000);
+        
+        ArrayList<openAccountResponse> openAccountResponses = serverObs.getResponseCollector(); //Make a for cycle now to check each response out of this list (Implement (1,N) atomic register )
+
+        
+        for(openAccountResponse response: openAccountResponses)
+            System.out.println(response);
+        /*if(response.getSequenceNumber() != sequenceNumber + 1){
             logger.log("Invalid sequence number. Possible replay attack detected.");
             return;
         }
@@ -107,11 +128,11 @@ public class Client {
             }
             List<Integer> nonce = new ArrayList<>(sequenceNumber);
             nonces.put(localUserID, nonce);
-            System.out.println("Local user id: " + localUserID + ", Local access password: " + randPass + "-" + password);
+            System.out.println("Local user id: " + localUserID + ", Local access password: " + randPass + "-" + password);  
         }
         catch(Exception e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-        }
+        } */
     }
 
 

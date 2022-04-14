@@ -26,8 +26,7 @@ public class Server {
     private final int serverPort;
     private Map<String, List<Integer>> nonces = new TreeMap<>();
 
-	public Server(int server_port)
-            throws IOException {
+	public Server(int server_port) throws IOException, ServerException{
 
         serverRepo = new ServerRepo(server_port);
         logger = new Logger("Server", "App");

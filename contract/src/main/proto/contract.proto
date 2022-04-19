@@ -32,13 +32,15 @@ message openAccountResponse{
 message sendAmountRequest{
 	bytes publicKeySender = 1;
 	bytes publicKeyReceiver = 2;
-	float amount = 3;
+	float amount = 3; //if not isValidated then amount = transferamount, is isValidated, then amount=newBalance
 	int32 sequenceNumber = 4;
 	bytes hashMessage = 5;
+	bool isValidated = 6;
 }
 
 message sendAmountResponse{
 	int32 transferId = 1;
+	float newBalance = 2;
 	int32 sequenceNumber = 2;
 	bytes hashMessage = 3; 
 }
@@ -78,11 +80,14 @@ message receiveAmountRequest{
 	int32 movementId = 2;
 	int32 sequenceNumber = 3;
 	bytes hashMessage = 4;
+	float amount = 5; //if not isValidated then amount = null, is isValidated, then amount=newBalance
+	bool isValidated = 6;
 }
 
 message receiveAmountResponse{
 	int32 sequenceNumber = 1;
-	bytes hashMessage = 2;
+	float newBalance= 2;
+	bytes hashMessage = 3;
 }
 
 message auditRequest{

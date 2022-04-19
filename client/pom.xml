@@ -17,7 +17,7 @@
     <properties>
         <mainClass>sec.bftb.client.ClientMain</mainClass>
 		<server.host>localhost</server.host>
-		<server.port>8080</server.port>
+		<server.port>8090</server.port>
 		<maxFaults>1</maxFaults>
     </properties>
 

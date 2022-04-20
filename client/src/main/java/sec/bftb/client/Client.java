@@ -56,10 +56,9 @@ public class Client {
     }
 
 
-    public void checkByzantineFaultQuantity(int byzantineFaultCont){
+    public void checkByzantineFaultQuantity(int byzantineFaultCont) throws Exception{
         if(byzantineFaultCont > possibleFailures){
-            logger.log("More than " + possibleFailures + " server(s) have byzantine faults. Terminating...");
-            System.exit(0);
+            throw new Exception("maxByzantineFaults");
         }
     }
     
@@ -97,7 +96,7 @@ public class Client {
         byte[] publicKeyBytes;
         KeyPair pair;
         ArrayList<ServerFrontend> frontends = new ArrayList<>();
-        int localUserID = 0, randPass = 0, i=0, targetPort;
+        int localUserID = 0, randPass = 0, i=0, byzantineResponsesCont = 0, targetPort;
 
         int sequenceNumber = new Random().nextInt(10000);
         
@@ -162,17 +161,18 @@ public class Client {
                 checkExceptionQuantity(openAccountLogicExceptions, openAccountSystemExceptions, frontends);
             }
             
-            //potentially delete seqnumber and hash message field in open account response as they don't seem to be necessary
+            
 
             //eliminate byzantine responses wrongly signed or with wrong nonces (unecessary for open account)
-            /*for(openAccountResponse response: openAccountResponses){ //Remove altered/duplicated replies
-                if(i==byzantineQuorum)
-                        break;
-                i++;
+            for(openAccountResponse response: openAccountResponses){ //Remove altered/duplicated replies
+                
+                checkByzantineFaultQuantity(byzantineResponsesCont);
+
                 System.out.println(response);
                 if(response.getSequenceNumber() != sequenceNumber + 1){
                     logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                     openAccountResponses.remove(response);
+                    byzantineResponsesCont++;
                     continue;
                 }
                 messageBytes = new ByteArrayOutputStream();
@@ -184,9 +184,10 @@ public class Client {
                 String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
                 if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
                     logger.log("One of the replica's reply message had its integrity compromissed.");
-                    openAccountResponses.remove(response);           
+                    openAccountResponses.remove(response);
+                    byzantineResponsesCont++;           
                 }
-            }*/
+            }
 
             try{
                 Map<Integer,Integer> valuePair = CryptographicFunctions.saveKeyPair(pair,password); 
@@ -204,7 +205,10 @@ public class Client {
                 frontend.close();
             }
             catch(Exception e){
-                logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                if(!e.getMessage().equals("maxByzantineFaults"))
+                    logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                else
+                    logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
             }   
         }
     }
@@ -324,19 +328,9 @@ public class Client {
         ByteString signatureAux;
 
 
-        sequenceNumber = generateNonce(userID);
         try{
-            privateKey = CryptographicFunctions.getClientPrivateKey(password);
+            sequenceNumber = generateNonce(userID);
             publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
-        
-            messageBytes = new ByteArrayOutputStream();
-            messageBytes.write(publicKeyBytes);
-            messageBytes.write(":".getBytes());
-            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
-            
-            hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
-            encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
-            .encrypt(privateKey, hashMessage.getBytes()));
         }
         catch (Exception e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
@@ -345,7 +339,7 @@ public class Client {
 
 		
         checkAccountRequest request = checkAccountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
-        .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
+        .setSequenceNumber(sequenceNumber).build();   
 
 
 
@@ -389,8 +383,7 @@ public class Client {
                 
                 for(checkAccountResponse response: checkAccountResponses){ //Remove altered (message integrity compromissed) or duplicated (replay attacks) replies
                     
-                    if(byzantineResponsesCont==byzantineQuorum)
-                        break;
+                    checkByzantineFaultQuantity(byzantineResponsesCont);
                     
                     System.out.println(response);
                     if(response.getSequenceNumber() != sequenceNumber + 1){
@@ -486,7 +479,10 @@ public class Client {
 
                 }
             catch(Exception e){
-                logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                if(!e.getMessage().equals("maxByzantineFaults"))
+                    logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                else
+                    logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
             }
         }
     }

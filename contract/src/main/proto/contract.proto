@@ -48,7 +48,6 @@ message sendAmountResponse{
 message checkAccountRequest{
 	bytes publicKeyClient = 1;
 	int32 sequenceNumber = 2;
-	bytes hashMessage = 3;
 }
 
 message checkAccountResponse{

@@ -21,6 +21,8 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.google.protobuf.ByteString;
+
 public class ServerRepo {
 
     private final Logger logger;
@@ -102,13 +104,15 @@ public class ServerRepo {
         }
     }*/
 
-    public void openAccount(String pubKey, Float balance) throws SQLException {
+    public void openAccount(String pubKey, Float balance, String signatureRegister) throws SQLException {
         try {
-            String query = "INSERT INTO account (pubKey, balance) VALUES (?, ?)";
+            String query = "INSERT INTO account (pubKey, balance, versionNumber, signatureRegister) VALUES (?, ?, ?, ?)";
             connection = this.newConnection();
             statement = connection.prepareStatement(query);
             statement.setString(1, pubKey);
             statement.setFloat(2, balance);
+            statement.setInt(3, 0);
+            statement.setString(4, signatureRegister);
             statement.executeUpdate();
         } finally {
             //closeConnection();
@@ -156,7 +160,7 @@ public class ServerRepo {
 
     public List<Movement> getPendingMovements(String pubKey) throws SQLException{
         try{ 
-            String query = "SELECT movementId,amount,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'PENDING'";
+            String query = "SELECT movementId,amount,signatureRegister,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'PENDING'";
             ArrayList<Movement> movements = new ArrayList<>();
             connection = this.newConnection();
             statement = connection.prepareStatement(query);
@@ -167,10 +171,12 @@ public class ServerRepo {
                 String source = resultSet.getString("sourceAccount");
                 String destination = resultSet.getString("destinationAccount");
                 String status = resultSet.getString("transferStatus");
+                String signature = resultSet.getString("signatureRegister");
                 int transferId = resultSet.getInt("movementId");      
                 float amount = resultSet.getFloat("amount");
 
-                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setStatus(status).build();
+                Movement mov = Movement.newBuilder().setMovementID(transferId)
+                .setMovementSignature(ByteString.copyFrom(signature.getBytes())).setAmount(amount).setStatus(status).build();
 
                 movements.add(mov);
             }
@@ -316,6 +322,45 @@ public class ServerRepo {
             //closeConnection();
         }
     }
+
+    public int getVersionNumber(String pubKey) throws SQLException {
+        try {
+            String query = "SELECT versionNumber FROM account WHERE pubKey=?";
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setString(1, pubKey);
+
+            resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt("versionNumber");             
+            }
+            else{
+                return -1; 
+            }
+        } finally{
+            //closeConnection();
+        }
+    }
+
+    public String getSignature(String pubKey) throws SQLException {
+        try {
+            String query = "SELECT signatureRegister FROM account WHERE pubKey=?";
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setString(1, pubKey);
+
+            resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getString("signatureRegister");             
+            }
+            else{
+                return "-1"; 
+            }
+        } finally{
+            //closeConnection();
+        }
+    }
+
 
     public int getMaxTranferId() throws SQLException {
         try {

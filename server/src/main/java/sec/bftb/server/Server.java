@@ -37,7 +37,7 @@ public class Server {
 		return "I'm alive!";
 	}
 
-    public openAccountResponse open_account(ByteString clientPublicKey, int sequenceNumber, ByteString hashMessage) throws Exception{
+    public openAccountResponse open_account(ByteString clientPublicKey, ByteString registerSignature,int sequenceNumber, ByteString hashMessage) throws Exception{
         
         List <Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
         if(values != null && values.contains(sequenceNumber))
@@ -60,7 +60,8 @@ public class Server {
 
             if (balance != -1)
                 throw new ServerException(ErrorMessage.USER_ALREADY_EXISTS);
-            this.serverRepo.openAccount(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()), INITIAL_BALANCE);
+            this.serverRepo.openAccount(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()),
+             INITIAL_BALANCE, new String(registerSignature.toByteArray()));
 
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(String.valueOf(INITIAL_BALANCE).getBytes());
@@ -154,34 +155,19 @@ public class Server {
 
 
 
-    public checkAccountResponse check_account(ByteString clientPublicKey, int sequenceNumber, ByteString hashMessage) throws Exception{
-        
-        List <Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
-        if(values != null && values.contains(sequenceNumber))
-            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
-
+    public checkAccountResponse check_account(ByteString clientPublicKey, int sequenceNumber) throws Exception{
         
         try{
-            ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
-            messageBytes.write(clientPublicKey.toByteArray());
-            messageBytes.write(":".getBytes());
-            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
-            
-            String hashMessageString = CryptographicFunctions.decrypt(clientPublicKey.toByteArray(), hashMessage.toByteArray());
-
-            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
-                throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
-        
-
             //Obtain user's balance
-            float balance = this.serverRepo.getBalance(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
+            String clientPublicKeyString = Base64.getEncoder().encodeToString(clientPublicKey.toByteArray());
+            float balance = this.serverRepo.getBalance(clientPublicKeyString);
             if (balance == -1)
                 throw new ServerException(ErrorMessage.NO_SUCH_USER);
-            
+            int registerSequenceNumber = this.serverRepo.getVersionNumber(clientPublicKeyString);
+            String registerSignature = this.serverRepo.getSignature(clientPublicKeyString);
            
-            List<Movement> movements = this.serverRepo.getPendingMovements(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
+            List<Movement> movements = this.serverRepo.getPendingMovements(clientPublicKeyString);
 
-            //List<Movement> changeLater = new ArrayList<>(); // substitute later for Movement list
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(movements.toString().getBytes());
             replyBytes.write(":".getBytes());
@@ -198,8 +184,8 @@ public class Server {
             nonces.put(new String(clientPublicKey.toByteArray()), nonce);
 
             checkAccountResponse response = checkAccountResponse.newBuilder().addAllPendingMovements(movements)
-                        .setBalance(balance).setSequenceNumber(sequenceNumber + 1)
-                        .setHashMessage(encryptedHashReply).build();
+                        .setBalance(balance).setRegisterSignature(ByteString.copyFrom(registerSignature.getBytes()))
+                        .setRegisterSequenceNumber(registerSequenceNumber).setSequenceNumber(sequenceNumber + 1).setHashMessage(encryptedHashReply).build();
             return response;
         }  
         catch(GeneralSecurityException e){

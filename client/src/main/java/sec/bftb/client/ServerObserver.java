@@ -47,7 +47,7 @@ public class ServerObserver<R> implements StreamObserver<R>{
                 //this.notifyAll();
             }   */
 
-            if(Status.INVALID_ARGUMENT == e.getStatus()){
+            if(Status.INVALID_ARGUMENT.getCode() == e.getStatus().getCode()){
                 logicExceptions.add(e);
                 this.notifyAll();
                 return;

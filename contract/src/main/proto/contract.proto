@@ -6,7 +6,8 @@ message Movement {
 	int32 movementID = 1;
 	float amount = 2;
 	string status = 3;
-	string directionOfTransfer = 4;
+	bytes movementSignature = 4;
+	string directionOfTransfer = 5;
 }
 
 message PingRequest {
@@ -52,8 +53,10 @@ message checkAccountRequest{
 message checkAccountResponse{
 	repeated Movement pendingMovements = 1;
 	float balance = 2;
-	int32 sequenceNumber = 3;
-	bytes hashMessage = 4;
+	int32 registerSequenceNumber = 3;
+	bytes registerSignature = 4;
+	int32 sequenceNumber = 5;
+	bytes hashMessage = 6;
 }
 
 message checkMovementRequest{

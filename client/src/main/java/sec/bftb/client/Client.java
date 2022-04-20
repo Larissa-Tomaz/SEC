@@ -56,28 +56,19 @@ public class Client {
     }
 
 
-    public void checkExceptionQuantity(ArrayList<StatusRuntimeException> exceptions, ArrayList<ServerFrontend> frontends) throws Exception{
-        Exception exception = new Exception();
-        int invalidArgCount = 0, unavailableCount = 0;
-        for(StatusRuntimeException e : exceptions){
-                if(e.getStatus().getCode().equals(Status.INVALID_ARGUMENT.getCode())){
-                    exception = e;
-                    invalidArgCount++;
-                }
-                else
-                    unavailableCount++;
-                
-                //else if(e.getStatus().getCode().equals(Status.UNAVAILABLE.getCode())){
-                //    unavailableCount++;
-                //}
-        }
-        if(unavailableCount > possibleFailures){
+    public void checkExceptionQuantity(ArrayList<StatusRuntimeException> logicExceptions,
+        ArrayList<Exception> systemExceptions, ArrayList<ServerFrontend> frontends) throws Exception{
+        
+        
+        if(logicExceptions.size() >= byzantineQuorum){
+            throw new Exception(logicExceptions.get(0)); //Change later(identify majority of exceptions and only throw that one while regarding the others as having come from byzantine clients)
+        }  //For byzantine exceptions increment unavailable counter and check again if it's > possible faults before returning majority exception
+        
+        else if(systemExceptions.size() > possibleFailures){
             logger.log("More than " + possibleFailures + " server(s) are unresponsive. Terminating...");
             System.exit(0);
         }
-        else if(invalidArgCount >= byzantineQuorum){
-            throw new Exception(exception); //Change later(identify majority of exceptions and only throw that one while regarding the others as having come from byzantine clients)
-        }                                   //For byzantine exceptions increment unavailable counter and check again if it's > possible faults before returning majority exception
+        
         /*else{ //possibly unecessary
             for (StatusRuntimeException ex : exceptions)
                 logger.log("Exception with message: " + ex.getMessage());
@@ -140,19 +131,23 @@ public class Client {
                 try{
                     serverObs.wait(2000);
                     System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("ExceptionCollector size: " + serverObs.getExceptionCollector().size());
+                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
+                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
                 }
             }
-            while(serverObs.getResponseCollector().size() < byzantineQuorum && serverObs.getExceptionCollector().size() != numberOfServers); 
+            while(serverObs.getResponseCollector().size() < byzantineQuorum && 
+            serverObs.getLogicExceptionCollector().size() < byzantineQuorum && 
+            serverObs.getSystemExceptionCollector().size() <= possibleFailures); 
             
             ArrayList<openAccountResponse> openAccountResponses = serverObs.getResponseCollector(); 
-            ArrayList<StatusRuntimeException> openAccountExceptions = serverObs.getExceptionCollector();
+            ArrayList<StatusRuntimeException> openAccountLogicExceptions = serverObs.getLogicExceptionCollector();
+            ArrayList<Exception> openAccountSystemExceptions = serverObs.getSystemExceptionCollector();
             
-            if(openAccountExceptions.size() == numberOfServers){
-                checkExceptionQuantity(openAccountExceptions, frontends);
+            if(openAccountLogicExceptions.size() >= byzantineQuorum || openAccountSystemExceptions.size() > possibleFailures){
+                checkExceptionQuantity(openAccountLogicExceptions, openAccountSystemExceptions, frontends);
             }
             
             //potentially delete seqnumber and hash message field in open account response as they don't seem to be necessary
@@ -303,7 +298,7 @@ public class Client {
         
         ByteArrayOutputStream messageBytes;
         String hashMessage;
-        int sequenceNumber, seqNumberAux,i = 0;
+        int sequenceNumber, seqNumberAux, byzantineResponsesCont = 0, i = 0;
         ByteString encryptedHashMessage;
         byte[] publicKeyBytes;
         Key privateKey;
@@ -357,13 +352,18 @@ public class Client {
                     throw e;
                 }
             }
-            while(serverObs.getResponseCollector().size() < byzantineQuorum && serverObs.getExceptionCollector().size() != byzantineQuorum); //Wait for BQ of responses(or exceptions)
+            while(serverObs.getResponseCollector().size() < byzantineQuorum && 
+            serverObs.getLogicExceptionCollector().size() < byzantineQuorum && 
+            serverObs.getSystemExceptionCollector().size() <= possibleFailures); 
             
-            ArrayList<checkAccountResponse> checkAccountResponses = serverObs.getResponseCollector(); //Make a for cycle now to check each response out of this list (Implement (1,N) atomic register )
-            ArrayList<StatusRuntimeException> checkAccountExceptions = serverObs.getExceptionCollector();
+            ArrayList<checkAccountResponse> checkAccountResponses = serverObs.getResponseCollector(); 
+            ArrayList<StatusRuntimeException> checkAccountLogicExceptions = serverObs.getLogicExceptionCollector();
+            ArrayList<Exception> checkAccountSystemExceptions = serverObs.getSystemExceptionCollector();
             
-             if(checkAccountExceptions.size() == numberOfServers)
-                checkExceptionQuantity(checkAccountExceptions, frontends);
+            if(checkAccountLogicExceptions.size() >= byzantineQuorum || checkAccountSystemExceptions.size() > possibleFailures){
+                checkExceptionQuantity(checkAccountLogicExceptions, checkAccountSystemExceptions, frontends);
+            }
+            
             
 
             try{
@@ -377,6 +377,7 @@ public class Client {
                     if(response.getSequenceNumber() != sequenceNumber + 1){
                         logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                         checkAccountResponses.remove(response);
+                        byzantineResponsesCont++;
                         continue;
                     }
 
@@ -391,10 +392,10 @@ public class Client {
                     String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
                     if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
                         logger.log("One of the replica's reply message had its integrity compromissed.");
-                        checkAccountResponses.remove(response);           
+                        checkAccountResponses.remove(response);
+                        byzantineResponsesCont           
                     }
                 }
-
 
                 //remake cycle below taking into account signature and seqnumber of balance register and each signature corresponding to each register in the pending movements list
 

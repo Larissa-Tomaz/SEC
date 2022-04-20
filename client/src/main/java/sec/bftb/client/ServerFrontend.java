@@ -10,25 +10,25 @@ import sec.bftb.grpc.Contract.*;
 
 
 public class ServerFrontend {
-    private BFTBankingGrpc.BFTBankingBlockingStub stub;
+    private BFTBankingGrpc.BFTBankingStub stub;
     private final ManagedChannel channel;
 
     public ServerFrontend(String target) {
         channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
-        stub = BFTBankingGrpc.newBlockingStub(channel);
+        stub = BFTBankingGrpc.newStub(channel);
     }
 
-    public PingResponse ping(PingRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ping(request); }
+    //public PingResponse ping(PingRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ping(request); }
 
-    public void openAccount(openAccountRequest request) { stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).openAccount(request); }
+    public void openAccount(openAccountRequest request, ServerObserver<openAccountResponse> serverObs) { stub.withDeadlineAfter(5000, TimeUnit.MILLISECONDS).openAccount(request,serverObs); }
 
-    public sendAmountResponse sendAmount(sendAmountRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).sendAmount(request); }
+    public void sendAmount(sendAmountRequest request, ServerObserver<sendAmountResponse> serverObs) { stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).sendAmount(request,serverObs); }
 
-    public checkAccountResponse checkAccount(checkAccountRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).checkAccount(request); }
+    public void checkAccount(checkAccountRequest request, ServerObserver<checkAccountResponse> serverObs) { stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).checkAccount(request,serverObs); }
     
-    public receiveAmountResponse receiveAmount(receiveAmountRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).receiveAmount(request); }
+    public void receiveAmount(receiveAmountRequest request, ServerObserver<receiveAmountResponse> serverObs) { stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).receiveAmount(request,serverObs); }
 
-    public auditResponse audit(auditRequest request){ return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).audit(request); }
+    public void audit(auditRequest request, ServerObserver<auditResponse> serverObs){ stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).audit(request,serverObs); }
     
     public void close() {
         channel.shutdownNow();

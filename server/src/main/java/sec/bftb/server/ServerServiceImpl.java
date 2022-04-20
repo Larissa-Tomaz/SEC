@@ -35,6 +35,7 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void openAccount(openAccountRequest request, StreamObserver<openAccountResponse> responseObserver) {
 		try{
+			logger.log("Received openAccountRequest");
 			openAccountResponse response = server.open_account(request.getPublicKeyClient(),
 			request.getSequenceNumber(), request.getHashMessage());
 			responseObserver.onNext(response);

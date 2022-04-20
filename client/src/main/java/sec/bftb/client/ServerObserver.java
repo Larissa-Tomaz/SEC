@@ -54,6 +54,7 @@ public class ServerObserver<R> implements StreamObserver<R>{
             */
             exceptions.add(e);
             this.notifyAll();
+            return;
         }
     }
 

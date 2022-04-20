@@ -38,8 +38,7 @@ public class Client {
     private Map<Integer, List<Integer>> nonces = new TreeMap<>();
 
    
-    public Client(String _host, int base_port, String _target, int possible_failures, int number_of_servers){ //Remove target later
-        target = _target;
+    public Client(String _host, int base_port, int possible_failures, int number_of_servers){ //Remove target later
         host = _host;
         basePort = base_port;
         numberOfServers = number_of_servers;
@@ -57,7 +56,7 @@ public class Client {
     }
 
 
-    public boolean checkExceptionQuantity(ArrayList<StatusRuntimeException> exceptions) throws Exception{
+    public void checkExceptionQuantity(ArrayList<StatusRuntimeException> exceptions, ArrayList<ServerFrontend> frontends) throws Exception{
         Exception exception = new Exception();
         int invalidArgCount = 0, unavailableCount = 0;
         for(StatusRuntimeException e : exceptions){
@@ -65,24 +64,26 @@ public class Client {
                     exception = e;
                     invalidArgCount++;
                 }
-                else if(e.getStatus().getCode().equals(Status.UNAVAILABLE.getCode())){
+                else
                     unavailableCount++;
-                }
+                
+                //else if(e.getStatus().getCode().equals(Status.UNAVAILABLE.getCode())){
+                //    unavailableCount++;
+                //}
         }
         if(unavailableCount > possibleFailures){
-            logger.log("More than " + possibleFailures + " servers are down. Terminating...");
+            logger.log("More than " + possibleFailures + " server(s) are unresponsive. Terminating...");
             System.exit(0);
         }
         else if(invalidArgCount >= byzantineQuorum){
-            throw new Exception(exception); //Change later(identify majority of exceptions and only throw that one)
-        }
-        else{
+            throw new Exception(exception); //Change later(identify majority of exceptions and only throw that one while regarding the others as having come from byzantine clients)
+        }                                   //For byzantine exceptions increment unavailable counter and check again if it's > possible faults before returning majority exception
+        /*else{ //possibly unecessary
             for (StatusRuntimeException ex : exceptions)
                 logger.log("Exception with message: " + ex.getMessage());
             logger.log("Please retry operation...");
             return false;
-        }
-        return true;
+        }*/
     }
 
 
@@ -92,7 +93,7 @@ public class Client {
     public void open(String password) throws Exception{
         
         ByteArrayOutputStream messageBytes;
-        String hashMessage, _target;
+        String hashMessage;
         ByteString encryptedHashMessage;
         byte[] publicKeyBytes;
         KeyPair pair;
@@ -127,34 +128,39 @@ public class Client {
         ServerObserver<openAccountResponse> serverObs = new ServerObserver<openAccountResponse>();
 
         synchronized(serverObs){
-            for(cont = 0; cont <= numberOfServers; cont++){
-                targetPort = basePort + cont;
-                _target = host + ":" + targetPort;
+            for(cont = 0; cont < numberOfServers; cont++){
+                target = host + ":" + (basePort + cont);
                 frontend = new ServerFrontend(target);
-                frontend.openAccount(request);
+                frontend.openAccount(request,serverObs);
                 frontends.add(frontend);
             }
-
+            
+            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs.wait(2000);
+                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
+                    System.out.println("ExceptionCollector size: " + serverObs.getExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
                 }
             }
-            while(serverObs.getResponseCollector().size() < byzantineQuorum || serverObs.getExceptionCollector().size() < byzantineQuorum); 
+            while(serverObs.getResponseCollector().size() < byzantineQuorum && serverObs.getExceptionCollector().size() != numberOfServers); 
             
-            ArrayList<openAccountResponse> openAccountResponses = serverObs.getResponseCollector(); //Make a for cycle now to check each response out of this list (Implement (1,N) atomic register )
+            ArrayList<openAccountResponse> openAccountResponses = serverObs.getResponseCollector(); 
             ArrayList<StatusRuntimeException> openAccountExceptions = serverObs.getExceptionCollector();
             
-            if(openAccountExceptions.size() >= byzantineQuorum){
-                if(!checkExceptionQuantity(openAccountExceptions))
-                    return;
+            if(openAccountExceptions.size() == numberOfServers){
+                checkExceptionQuantity(openAccountExceptions, frontends);
             }
             
-            //eliminate byzantine responses wrongly signed or with wrong nonces
+            //potentially delete seqnumber and hash message field in open account response as they don't seem to be necessary
+
+            //eliminate byzantine responses wrongly signed or with wrong nonces (unecessary for open account)
             /*for(openAccountResponse response: openAccountResponses){ //Remove altered/duplicated replies
+                if(i==byzantineQuorum)
+                        break;
                 i++;
                 System.out.println(response);
                 if(response.getSequenceNumber() != sequenceNumber + 1){
@@ -173,8 +179,6 @@ public class Client {
                     logger.log("One of the replica's reply message had its integrity compromissed.");
                     openAccountResponses.remove(response);           
                 }
-                if(i==byzantineQuorum)
-                    break;
             }*/
 
             try{
@@ -195,29 +199,6 @@ public class Client {
             catch(Exception e){
                 logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
             }   
-
-
-            /*response = readResp.get(0);
-			aux = response.getSequence();
-            for(i=0; i < openAccountResponses.size(); i++){
-
-                response = readResp.get(0);
-			aux = response.getSequence();
-			cid_aux = response.getCid();
-			System.out.println("Frontend received answer with sequence number = " + aux + " ...");
-			for(int i = 1; i<readQuorum ; i++) {
-				System.out.println("Frontend received answer with sequence number = " + readResp.get(i).getSequence() + " ...");
-				if(readResp.get(i).getSequence() > aux) {
-					response = readResp.get(i);
-					aux = response.getSequence();
-					cid_aux = response.getCid();
-				}
-				else if(readResp.get(i).getSequence() == aux && readResp.get(i).getCid()>cid_aux)  {
-					response = readResp.get(i);
-					aux = response.getSequence();
-					cid_aux = response.getCid();
-				}
-			}*/  
         }
     }
 
@@ -225,7 +206,7 @@ public class Client {
     //--------------------------------------Send amount--------------------------------------
 
 
-
+    /*
     public void send(String password, int sourceID, int destID, float amount) throws Exception{
         
         ByteArrayOutputStream messageBytes;
@@ -234,6 +215,7 @@ public class Client {
         ByteString encryptedHashMessage;
         byte[] sourcePublicKeyBytes, destPublicKeyBytes;
         Key privateKey;
+        ArrayList<ServerFrontend> frontends = new ArrayList<>();
 
 
         sequenceNumber = generateNonce(sourceID);
@@ -265,6 +247,22 @@ public class Client {
         .setPublicKeyReceiver(ByteString.copyFrom(destPublicKeyBytes)).setAmount(amount)
         .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
 
+
+        ServerObserver<sendAmountResponse> serverObs = new ServerObserver<sendAmountResponse>();
+
+        synchronized(serverObs){
+            for(cont = 0; cont <= numberOfServers; cont++){
+                
+                String _target = host + ":" + (basePort + cont);
+                frontend = new ServerFrontend(target);
+                frontend.openAccount(request,serverObs);
+                frontends.add(frontend);
+            }
+        }
+
+
+
+
 		frontend = new ServerFrontend(target);
         sendAmountResponse response = frontend.sendAmount(request);
         frontend = new ServerFrontend(target);
@@ -295,20 +293,22 @@ public class Client {
         catch(Exception e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
         }
-    }
+    }*/
 
 
     //---------------------------------Check account--------------------------------
 
-
+    /*
     public void check(String password, int userID){
         
         ByteArrayOutputStream messageBytes;
         String hashMessage;
-        int sequenceNumber;
+        int sequenceNumber, seqNumberAux,i = 0;
         ByteString encryptedHashMessage;
         byte[] publicKeyBytes;
         Key privateKey;
+        ArrayList<ServerFrontend> frontends = new ArrayList<>();
+        checkAccountResponse responseAux;
 
 
         sequenceNumber = generateNonce(userID);
@@ -334,7 +334,100 @@ public class Client {
         checkAccountRequest request = checkAccountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
         .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
 
-        frontend = new ServerFrontend(target);
+
+
+        ServerObserver<checkAccountResponse> serverObs = new ServerObserver<checkAccountResponse>();
+
+        synchronized(serverObs){
+            for(cont = 0; cont < numberOfServers; cont++){  //Send all requests
+                target = host + ":" + (basePort + cont);
+                frontend = new ServerFrontend(target);
+                frontend.checkAccount(request,serverObs);
+                frontends.add(frontend);
+            }
+            
+            System.out.println("Sent all requests.");
+            do {
+                try{
+                    serverObs.wait(2000);
+                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
+                    System.out.println("ExceptionCollector size: " + serverObs.getExceptionCollector().size());
+                }catch (InterruptedException e) {
+                    System.out.println("Wait interrupted");
+                    throw e;
+                }
+            }
+            while(serverObs.getResponseCollector().size() < byzantineQuorum && serverObs.getExceptionCollector().size() != byzantineQuorum); //Wait for BQ of responses(or exceptions)
+            
+            ArrayList<checkAccountResponse> checkAccountResponses = serverObs.getResponseCollector(); //Make a for cycle now to check each response out of this list (Implement (1,N) atomic register )
+            ArrayList<StatusRuntimeException> checkAccountExceptions = serverObs.getExceptionCollector();
+            
+             if(checkAccountExceptions.size() == numberOfServers)
+                checkExceptionQuantity(checkAccountExceptions, frontends);
+            
+
+            try{
+                for(checkAccountResponse response: checkAccountResponses){ //Remove altered (message integrity compromissed) or duplicated (replay attacks) replies
+                    
+                    if(i==byzantineQuorum)
+                        break;
+                    i++;
+                    
+                    System.out.println(response);
+                    if(response.getSequenceNumber() != sequenceNumber + 1){
+                        logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
+                        checkAccountResponses.remove(response);
+                        continue;
+                    }
+
+                    messageBytes = new ByteArrayOutputStream();
+                    messageBytes.write(response.getPendingMovementsList().toString().getBytes());
+                    messageBytes.write(":".getBytes());
+                    messageBytes.write(String.valueOf(response.getBalance()).getBytes());
+                    messageBytes.write(":".getBytes());
+                    messageBytes.write(String.valueOf(response.getSequenceNumber()).getBytes());
+                    
+                    serverPublicKey = CryptographicFunctions.getServerPublicKey("../crypto/");
+                    String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
+                    if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
+                        logger.log("One of the replica's reply message had its integrity compromissed.");
+                        checkAccountResponses.remove(response);           
+                    }
+                }
+
+
+                //remake cycle below taking into account signature and seqnumber of balance register and each signature corresponding to each register in the pending movements list
+
+                responseAux = checkAccountResponses.get(0);
+                seqNumberAux = responseAux.getSequenceNumber(); //Change fields in response later(get sequence number of register and not of the message)
+                //signatureAux = responseAux.getRegisterSignature() //Add this field in response later
+                
+                for(i=1; i < checkAccountResponses.size(); i++){ //Need to modify this cycle for a list of received registers and not just one
+                    if(checkAccountResponses.get(i).getSequenceNumber() > seqNumberAux){
+                        //if(verifySignature())
+                        responseAux = checkAccountResponses.get(i);
+                        seqNumberAux = responseAux.getSequenceNumber();
+                    }
+                }
+
+                //delete soon
+                /*System.out.println("Frontend received answer with sequence number = " + aux + " ...");
+                
+                    System.out.println("Frontend received answer with sequence number = " + readResp.get(i).getSequence() + " ...");
+                    if(readResp.get(i).getSequence() > aux) {
+                        response = readResp.get(i);
+                        aux = response.getSequence();
+                        cid_aux = response.getCid();
+                    }
+                }*/  
+
+
+            //for(ServerFrontend frontend : frontends)
+            //frontend.close();
+            //function terminates here, below is trash only
+
+
+        /*frontend = new ServerFrontend(target);
 		checkAccountResponse response = frontend.checkAccount(request);
         frontend.close();
         if(response.getSequenceNumber() != sequenceNumber + 1){
@@ -366,15 +459,15 @@ public class Client {
                 System.out.println("Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
                 
             }
-            System.out.println("\nYour current balance: " + response.getBalance());
-        }
-        catch(Exception e){
-            logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-        }
-    }
+            System.out.println("\nYour current balance: " + response.getBalance()); */
+            /*}
+            catch(Exception e){
+                logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+            }
+    }*/
 
 
-
+    /*
     public void receive(String password, int userID, int transferID){
         ByteArrayOutputStream messageBytes;
         String hashMessage;
@@ -382,6 +475,7 @@ public class Client {
         ByteString encryptedHashMessage;
         byte[] publicKeyBytes;
         Key privateKey;
+        ArrayList<ServerFrontend> frontends = new ArrayList<>();
 
 
         sequenceNumber = generateNonce(userID);
@@ -453,6 +547,7 @@ public class Client {
         ByteString encryptedHashMessage;
         byte[] publicKeyBytes;
         Key privateKey;
+        ArrayList<ServerFrontend> frontends = new ArrayList<>();
 
 
         sequenceNumber = generateNonce(userID);
@@ -512,6 +607,6 @@ public class Client {
         catch(Exception e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
         }
-    }
+    }*/
 
 }

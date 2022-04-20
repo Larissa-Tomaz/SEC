@@ -54,7 +54,7 @@ public class ServerRepo {
                 try (Connection con = DriverManager.getConnection(databaseUrl, prop)) {
                     ScriptRunner scriptRunner = new ScriptRunner(con);
                     scriptRunner.setLogWriter(null);
-                    scriptRunner.runScript(new BufferedReader(new FileReader(System.getProperty("user.dir") + "/../Schema/schema.sql")));
+                    scriptRunner.runScript(new BufferedReader(new FileReader("../schema/schema.sql")));
                    
                 } catch (Exception e) {
                     logger.log(e.getMessage());

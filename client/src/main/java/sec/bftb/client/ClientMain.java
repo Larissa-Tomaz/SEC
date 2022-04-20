@@ -25,7 +25,7 @@ public class ClientMain {
 		}
 
 		if (args.length != 3) {
-			logger.log("Invalid Number of Arguments. Must be two: host base_port Max_Byzantine_Faults");
+			logger.log("Invalid Number of Arguments. Must be three: host base_port Max_Byzantine_Faults");
 			myObj.close();
 			return;
 		} 
@@ -40,13 +40,13 @@ public class ClientMain {
 			return;
 		}
 		numberOfServers = (maxByzantineFaults * 3) + 1; 
-		final String target = host + ":" + base_port; //Delete later
+		//final String target = host + ":" + base_port; //Delete later
 
 		String[] command;
 		String str;
 
 		try{
-			Client user = new Client(host, base_port, target, maxByzantineFaults, numberOfServers);//Delete target later
+			Client user = new Client(host, base_port, maxByzantineFaults, numberOfServers);//Delete target later
 
 			System.out.println("Type 'help' to see avaliable operations.");
 
@@ -63,7 +63,7 @@ public class ClientMain {
 							else
 								System.out.printf("Open command must have exactly 1 argument: Password.%n");
 							break;
-						case "send":
+						/*case "send":
 							if(command.length == 5)
 								user.send(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]),Float.parseFloat(command[4]));
 							else
@@ -86,7 +86,7 @@ public class ClientMain {
 								user.audit(command[1], Integer.parseInt(command[2]));
 							else
 								System.out.printf("Audit command must have exactly 2 arguments: Password UserID.%n");
-							break;
+							break;*/
 						
 						case "help":
 							System.out.printf("Avaliable operations:\n");

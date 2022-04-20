@@ -20,8 +20,9 @@ message PingResponse {
 
 message openAccountRequest{
 	bytes publicKeyClient = 1;
-	int32 sequenceNumber = 2;
-	bytes hashMessage = 3;
+	bytes registerSignature = 2;
+	int32 sequenceNumber = 3;
+	bytes hashMessage = 4;
 }
 
 message openAccountResponse{

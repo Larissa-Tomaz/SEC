@@ -68,14 +68,14 @@ public class ClientMain {
 								user.send(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]),Float.parseFloat(command[4]));
 							else
 								System.out.printf("Send command must have exactly 4 arguments: Password senderUserID receiverUserID AmoutOfTransfer.%n");
-							break;
+							break;*/
 						case "check":
 							if(command.length == 3)
 								user.check(command[1], Integer.parseInt(command[2]));
 							else 
 								System.out.printf("Check command must have exactly 2 arguments: Password UserID.%n");
 							break;
-						case "receive":
+						/*case "receive":
 							if(command.length == 4)
 								user.receive(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]));
 							else

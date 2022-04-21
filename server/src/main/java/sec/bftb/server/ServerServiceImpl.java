@@ -104,7 +104,7 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void getHighestRegisterSequenceNumber(highestRegisterSequenceNumberRequest request, StreamObserver<highestRegisterSequenceNumberResponse> responseObserver ){
 		try{
-			highestRegisterSequenceNumberResponse response = server.getHighestSeq();
+			highestRegisterSequenceNumberResponse response = server.getHighestSeq(request.getPublicKey(), request.getSequenceNumber(), request.getHashMessage());
 			responseObserver.onNext(response);
 			responseObserver.onCompleted();
 		}
@@ -117,7 +117,8 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void writeBack(writeBackRequest request, StreamObserver<writeBackResponse> responseObserver) {
 		try{
-			writeBackResponse response = server.writeBack();
+			writeBackResponse response = server.writeBack(request.getPublicKey(), request.getRegisterSequenceNumber(),
+				request.getRegisterSignature(), request.getBalance(), request.getMessageSequenceNumber(), request.getHashMessage());
 			responseObserver.onNext(response);
 			responseObserver.onCompleted();
 		}

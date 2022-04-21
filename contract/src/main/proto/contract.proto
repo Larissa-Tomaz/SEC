@@ -101,8 +101,9 @@ message auditResponse{
 }
 
 message highestRegisterSequenceNumberRequest{
-	int32 sequenceNumber = 1;
-	bytes hashMessage = 2;
+	bytes publicKey = 1;
+	int32 sequenceNumber = 2;
+	bytes hashMessage = 3;
 }
 
 message highestRegisterSequenceNumberResponse{
@@ -117,7 +118,7 @@ message writeBackRequest{
 	bytes registerSignature = 3;
 	float balance = 4;
 	int32 messageSequenceNumber = 5;
-	bytes messageHash = 6; 	
+	bytes hashMessage = 6; 	
 } 
 message writeBackResponse{
 

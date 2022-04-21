@@ -310,9 +310,41 @@ public class Server {
         }
     }
 
-    public highestRegisterSequenceNumberResponse getHighestSeq() throws Exception{
+    public highestRegisterSequenceNumberResponse getHighestSeq(ByteString publicKey, int sequenceNumber, ByteString hashMessage) throws Exception{
+        List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
+        int highSeqNumber=0;
+        if(values != null && values.contains(sequenceNumber))
+            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
+
+        
         try{
-            highestRegisterSequenceNumberResponse response = highestRegisterSequenceNumberResponse.newBuilder().build();
+            ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKey.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            String hashMessageString = CryptographicFunctions.decrypt(publicKey.toByteArray(), hashMessage.toByteArray());
+
+            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
+                throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
+        
+            //TODO get highest seq number associated with publickKey
+
+            ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
+            replyBytes.write(String.valueOf(highSeqNumber).getBytes());
+            replyBytes.write(":".getBytes());
+            replyBytes.write(String.valueOf(sequenceNumber + 1).getBytes());
+            
+            String hashReply = CryptographicFunctions.hashString(new String(replyBytes.toByteArray()));
+            ByteString encryptedHashReply = ByteString.copyFrom(CryptographicFunctions
+            .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
+        
+        
+            List<Integer> nonce = new ArrayList<>(sequenceNumber);
+            nonces.put(new String(publicKey.toByteArray()), nonce);
+
+            highestRegisterSequenceNumberResponse response = highestRegisterSequenceNumberResponse.newBuilder()
+                .setHighSeqNumber(highSeqNumber).setSequenceNumber(sequenceNumber + 1).setHashMessage(encryptedHashReply).build();
             return response;
         }  
         catch(Exception e){
@@ -321,8 +353,32 @@ public class Server {
         }
     }
 
-    public writeBackResponse writeBack() throws Exception{
+    public writeBackResponse writeBack(ByteString publicKey, int registerSequenceNumber, ByteString registerSignature, float balance, int messageSequenceNumber, ByteString hashMessage) throws Exception{
+        List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
+        int highSeqNumber;
+        if(values != null && values.contains(messageSequenceNumber))
+            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
+
         try{
+
+            ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKey.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(registerSequenceNumber).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(registerSignature.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balance).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(messageSequenceNumber).getBytes());
+            
+            String hashMessageString = CryptographicFunctions.decrypt(publicKey.toByteArray(), hashMessage.toByteArray());
+
+            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
+                throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
+
+            //REPO write
+
             writeBackResponse response = writeBackResponse.newBuilder().build();
             return response;
         }  

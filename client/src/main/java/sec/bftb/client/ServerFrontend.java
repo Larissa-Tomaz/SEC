@@ -30,6 +30,10 @@ public class ServerFrontend {
 
     public void audit(auditRequest request, ServerObserver<auditResponse> serverObs){ stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).audit(request,serverObs); }
     
+    public void getHighestRegisterSequenceNumber(highestRegisterSequenceNumberRequest request, ServerObserver<highestRegisterSequenceNumberResponse> serverObs){
+        stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).getHighestRegisterSequenceNumber(request,serverObs);
+    }
+    
     public void close() {
         channel.shutdownNow();
     }

@@ -100,6 +100,17 @@ message auditResponse{
 	bytes hashMessage = 3;
 }
 
+message highestRegisterSequenceNumberRequest{
+	int32 sequenceNumber = 1;
+	bytes hashMessage = 2;
+}
+
+message highestRegisterSequenceNumberResponse{
+	int32 highSeqNumber = 1;
+	int32 sequenceNumber = 2;
+	bytes hashMessage = 3;
+}
+
 
 service BFTBanking {
 	rpc Ping(PingRequest) returns (PingResponse);
@@ -109,4 +120,5 @@ service BFTBanking {
 	rpc checkMovement(checkMovementRequest) returns (checkMovementResponse);
 	rpc receiveAmount(receiveAmountRequest) returns (receiveAmountResponse);
 	rpc audit(auditRequest) returns (auditResponse);
+	rpc getHighestRegisterSequenceNumber (highestRegisterSequenceNumberRequest) returns (highestRegisterSequenceNumberResponse);
 }

@@ -309,4 +309,26 @@ public class Server {
             throw new GeneralSecurityException(e); 
         }
     }
+
+    public highestRegisterSequenceNumberResponse getHighestSeq() throws Exception{
+        try{
+            highestRegisterSequenceNumberResponse response = highestRegisterSequenceNumberResponse.newBuilder().build();
+            return response;
+        }  
+        catch(Exception e){
+            logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+            throw new Exception(e); 
+        }
+    }
+
+    public writeBackResponse writeBack() throws Exception{
+        try{
+            writeBackResponse response = writeBackResponse.newBuilder().build();
+            return response;
+        }  
+        catch(Exception e){
+            logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+            throw new Exception(e); 
+        }
+    }
 }

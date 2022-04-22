@@ -10,6 +10,8 @@ import java.util.TreeMap;
 import javax.lang.model.util.ElementScanner6;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import com.google.protobuf.ByteString;
@@ -53,6 +55,22 @@ public class Client {
             sequenceNumber = new Random().nextInt(10000);
         }while(nonces.get(userID) != null && nonces.get(userID).contains(sequenceNumber));
         return sequenceNumber;
+    }
+    
+    public ArrayList<Movement> orderMovementByTimeStamp(List<Movement> movements_original){
+        ArrayList<Movement> movements = new ArrayList<Movement>(movements_original);
+        
+        for (int i = 0; i < movements.size() - 1; i++){
+            for (int j = 0; j < movements.size() - i - 1; j++){
+                if (movements.get(j).getTimeStamp() > movements.get(j + 1).getTimeStamp()) {
+                    Movement temp = movements.get(j);
+                    movements.set(j, movements.get(j + 1));
+                    movements.set(j + 1, temp) ;
+                }
+            }
+        }
+
+        return movements;
     }
 
 
@@ -236,6 +254,7 @@ public class Client {
         String hashMessage, hashRegister, hashMovement;
         ByteString encryptedHashMessage, encryptedHashRegister, encryptedHashMovement;
         int sequenceNumber, byzantineResponsesCont = 0;
+        long timeStamp;
         byte[] sourcePublicKeyBytes, destPublicKeyBytes;
         Key privateKey;
         ArrayList<ServerFrontend> frontends = new ArrayList<>();
@@ -249,6 +268,8 @@ public class Client {
 
         //Preparation of first request which gets the values that will be written in the second request (isValidated = false)
 
+        
+        timeStamp = CryptographicFunctions.getTimeStamp();
         sequenceNumber = generateNonce(sourceID);
         try{
             privateKey = CryptographicFunctions.getClientPrivateKey(password);
@@ -401,7 +422,7 @@ public class Client {
         isValidated = true;
         
         
-        hashMovement = CryptographicFunctions.hashString(transferIDFinal + ":" + amount + ":PENDING");
+        hashMovement = CryptographicFunctions.hashString(transferIDFinal + ":" + amount + ":PENDING:" + timeStamp);
         encryptedHashMovement = ByteString.copyFrom(CryptographicFunctions
         .encrypt(privateKey, hashMovement.getBytes()));
 
@@ -439,7 +460,7 @@ public class Client {
         request = sendAmountRequest.newBuilder().setPublicKeySender(ByteString.copyFrom(sourcePublicKeyBytes))
         .setPublicKeyReceiver(ByteString.copyFrom(destPublicKeyBytes)).setAmount(amount).setTransferId(transferIDFinal)
         .setMovementSignature(encryptedHashMovement).setNewBalance(balanceFinal).setRegisterSequenceNumber(seqNumberFinal)
-        .setRegisterSignature(encryptedHashRegister).setSequenceNumber(sequenceNumber)
+        .setRegisterSignature(encryptedHashRegister).setTimeStamp(timeStamp).setSequenceNumber(sequenceNumber)
         .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
 
 
@@ -621,7 +642,7 @@ public class Client {
                     for(Movement mov : response.getPendingMovementsList()){
                         signatureReplyRegister = CryptographicFunctions.decrypt(mov.getSignatureKey().toByteArray(), mov.getMovementSignature().toByteArray()); 
                         
-                        movementString = mov.getMovementID() + ":" + mov.getAmount() + ":" + mov.getStatus();
+                        movementString = mov.getMovementID() + ":" + mov.getAmount() + ":" + mov.getStatus() + ":" + mov.getTimeStamp();
                         if(!CryptographicFunctions.verifyMessageHash(movementString.getBytes(), signatureReplyRegister)){
                             byzantineResponsesCont++;
                             checkAccountResponses.remove(response);
@@ -659,7 +680,8 @@ public class Client {
                     System.out.println("Pending movements: None");
                 else{
                     System.out.println("Pending movements: ");
-                    for(Movement mov : checkAccountResponses.get(i).getPendingMovementsList())
+                    ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(checkAccountResponses.get(i).getPendingMovementsList());
+                    for(Movement mov : orderedMovements)
                         System.out.println("Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
                 }
                 System.out.println("\nYour current balance: " + balanceFinal);
@@ -691,6 +713,7 @@ public class Client {
         ByteArrayOutputStream messageBytes;
         String hashMessage, hashMovement, hashRegister;
         boolean isValidated = false;
+        long timeStamp;
         int sequenceNumber, byzantineResponsesCont = 0;
         ByteString encryptedHashMessage, encryptedHashMovement, encryptedHashRegister;
         byte[] publicKeyBytes;
@@ -704,6 +727,7 @@ public class Client {
         Movement movementAux, movementFinal;
 
 
+        timeStamp = CryptographicFunctions.getTimeStamp();
         sequenceNumber = generateNonce(userID);
         try{
             privateKey = CryptographicFunctions.getClientPrivateKey(password);
@@ -812,7 +836,7 @@ public class Client {
                     movementAux = response.getMovement();
                     signatureReplyRegister = CryptographicFunctions.decrypt(movementAux.getSignatureKey().toByteArray(), 
                     movementAux.getMovementSignature().toByteArray()); 
-                    signatureRegister = movementAux.getMovementID() + ":" + movementAux.getAmount() + ":" + movementAux.getStatus();
+                    signatureRegister = movementAux.getMovementID() + ":" + movementAux.getAmount() + ":" + movementAux.getStatus() + ":" + movementAux.getTimeStamp();
                     if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(), signatureReplyRegister)){
                         byzantineResponsesCont++;
                         receiveAmountResponses.remove(response);          
@@ -854,7 +878,7 @@ public class Client {
         
         isValidated = true;
         
-        hashMovement = CryptographicFunctions.hashString(transferID + ":" + amountFinal + ":APPROVED");
+        hashMovement = CryptographicFunctions.hashString(transferID + ":" + amountFinal + ":APPROVED:" + timeStamp);
         encryptedHashMovement = ByteString.copyFrom(CryptographicFunctions
         .encrypt(privateKey, hashMovement.getBytes()));
 
@@ -887,7 +911,7 @@ public class Client {
         }
         
         request = receiveAmountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
-        .setMovementId(transferID).setMovementSignature(encryptedHashMovement)
+        .setMovementId(transferID).setMovementSignature(encryptedHashMovement).setTimeStamp(timeStamp)
         .setNewBalance(balanceFinal).setRegisterSequenceNumber(seqNumberFinal)
         .setRegisterSignature(encryptedHashRegister).setSequenceNumber(sequenceNumber)
         .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
@@ -1038,7 +1062,7 @@ public class Client {
                     for(Movement mov : response.getConfirmedMovementsList()){
                         signatureReplyRegister = CryptographicFunctions.decrypt(mov.getSignatureKey().toByteArray(), mov.getMovementSignature().toByteArray()); 
 
-                        movementString = mov.getMovementID() + ":" + mov.getAmount() + ":" + mov.getStatus();
+                        movementString = mov.getMovementID() + ":" + mov.getAmount() + ":" + mov.getStatus() + ":" + mov.getTimeStamp();
                         if(!CryptographicFunctions.verifyMessageHash(movementString.getBytes(), signatureReplyRegister)){
                             byzantineResponsesCont++;
                             auditResponses.remove(response);
@@ -1074,15 +1098,31 @@ public class Client {
                 if(auditResponses.get(i).getConfirmedMovementsList().size() == 0)
                     System.out.println("Movement History: None");
                 else{
-                    System.out.println("Movement History:");
-                    for(Movement mov : auditResponses.get(i).getConfirmedMovementsList()){ //Change later to reflect real history of transactions(instead of changing status to approved in db create new line with same info + status approved)
+                    ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(auditResponses.get(i).getConfirmedMovementsList());
+                    
+                    ArrayList<Movement> confirmedMovements = new ArrayList<Movement>(orderedMovements);
+                    for(Movement mov: orderedMovements){ //Change later to reflect real history of transactions(instead of changing status to approved in db create new line with same info + status approved)
                         if(mov.getStatus().equals("APPROVED")){
-                            System.out.println("Movement " + mov.getMovementID() + ":");
-                            System.out.println("Status: APPROVED, " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount());
+                            int movementIDAux = mov.getMovementID();
+                            for(i = 0 ; i < orderedMovements.size() - 1 ; i++){
+                                if(movementIDAux > orderedMovements.get(i).getMovementID() && movementIDAux <= orderedMovements.get(i+1).getMovementID()){
+                                    Movement movementAux = Movement.newBuilder().setMovementID(movementIDAux).setAmount(mov.getAmount())
+                                    .setTimeStamp(mov.getTimeStamp()).setStatus("PENDING").build();
+                                    confirmedMovements.add(i+1,movementAux);
+                                }
+                            }
                         }
+                    }
+                    
+                    System.out.println("Movement History:");
+                    for(Movement mov : confirmedMovements){ //Change later to reflect real history of transactions(instead of changing status to approved in db create new line with same info + status approved)
+                        //if(mov.getStatus().equals("APPROVED")){
+                          //  System.out.println("Movement " + mov.getMovementID() + ":");
+                            //System.out.println("Status: APPROVED, " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount());
+                        //}
                         
                         System.out.println("Movement " + mov.getMovementID() + ":");
-                        System.out.println("Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount());
+                        System.out.println("< Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
                     }
                 }
 

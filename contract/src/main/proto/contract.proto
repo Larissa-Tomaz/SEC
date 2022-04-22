@@ -6,9 +6,10 @@ message Movement {
 	int32 movementID = 1;
 	float amount = 2;
 	string status = 3;
-	bytes movementSignature = 4;
-	bytes signatureKey = 5;
-	string directionOfTransfer = 6;
+	int64 timeStamp = 4;
+	bytes movementSignature = 5;
+	bytes signatureKey = 6;
+	string directionOfTransfer = 7;
 }
 
 message PingRequest {
@@ -37,13 +38,14 @@ message sendAmountRequest{
 	bytes publicKeyReceiver = 2;
 	float amount = 3;
 	int32 transferId = 4;
-	bytes movementSignature = 5;
-	float newBalance = 6;
-	int32 registerSequenceNumber = 7;
-	bytes registerSignature = 8;
-	int32 sequenceNumber = 9;
-	bytes hashMessage = 10;
-	bool isValidated = 11;
+	int64 timeStamp = 5;
+	bytes movementSignature = 6;
+	float newBalance = 7;
+	int32 registerSequenceNumber = 8;
+	bytes registerSignature = 9;
+	int32 sequenceNumber = 10;
+	bytes hashMessage = 11;
+	bool isValidated = 12;
 }
 
 message sendAmountResponse{
@@ -90,13 +92,14 @@ message checkMovementResponse{
 message receiveAmountRequest{
 	bytes publicKeyClient = 1;
 	int32 movementId = 2;
-	bytes movementSignature = 3;
-	float newBalance = 4;
-	int32 registerSequenceNumber = 5;
-	bytes registerSignature = 6;
-	int32 sequenceNumber = 7;
-	bytes hashMessage = 8;
-	bool isValidated = 9;
+	int64 timeStamp = 3;
+	bytes movementSignature = 4;
+	float newBalance = 5;
+	int32 registerSequenceNumber = 6;
+	bytes registerSignature = 7;
+	int32 sequenceNumber = 8;
+	bytes hashMessage = 9;
+	bool isValidated = 10;
 }
 
 message receiveAmountResponse{

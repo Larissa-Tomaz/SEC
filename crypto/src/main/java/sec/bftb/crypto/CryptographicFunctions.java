@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.io.*;
+import java.sql.Timestamp;
 import java.math.BigInteger;
 import java.nio.file.*;
 
@@ -110,6 +111,17 @@ public class CryptographicFunctions{
         }
     }
 
+
+    //---------------------------TimeStamp operations---------------------------
+
+
+    public static long getTimeStamp(){
+
+        Timestamp timestampNow = new Timestamp(System.currentTimeMillis());
+        long timeStampLong = timestampNow.getTime();
+
+        return timeStampLong;
+    }
 
     //---------------------------Hash Functions----------------------------------
 

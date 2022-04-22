@@ -202,7 +202,7 @@ public class Server {
 
             this.serverRepo.addTransfer(Base64.getEncoder().encodeToString(sourcePublicKey), 
                 Base64.getEncoder().encodeToString(request.getPublicKeyReceiver().toByteArray()),
-                request.getAmount(), request.getTransferId(), "PENDING", request.getMovementSignature().toByteArray()); 
+                request.getAmount(), request.getTransferId(), "PENDING", request.getTimeStamp(),request.getMovementSignature().toByteArray()); 
 
 
         }catch(GeneralSecurityException e){
@@ -264,7 +264,7 @@ public class Server {
         float balanceUpdated;
         byte[] registerSignature;
 
-        List <Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
+        List<Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
         if(values != null && values.contains(sequenceNumber))
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
 
@@ -365,7 +365,7 @@ public class Server {
             this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(clientPublicKey), request.getNewBalance());
             this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSequenceNumber());
             this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSignature().toByteArray());
-            this.serverRepo.receiveAmount(request.getMovementId(), "APPROVED", request.getMovementSignature().toByteArray());
+            this.serverRepo.receiveAmount(request.getMovementId(), "APPROVED", request.getMovementSignature().toByteArray(), request.getTimeStamp());
             
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());

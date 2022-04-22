@@ -642,7 +642,7 @@ public class Client {
                             signatureFinal = signatureAux;
                     }
                     checkByzantineFaultQuantity(byzantineResponsesCont);
-                }//
+                }
                 
                 checkAccountResponsesCopy = new ArrayList<>(checkAccountResponses);
                 for(checkAccountResponse response : checkAccountResponsesCopy){ //Remove byzantine replicas with wrongly signed movements
@@ -701,7 +701,7 @@ public class Client {
                 }
             catch(Exception e){
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
-                    logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                    logger.log("Exception with message: " + e.getMessage());
                 else if(e.getMessage().equals("maxByzantineFaults")){
                     Thread.sleep(500);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");

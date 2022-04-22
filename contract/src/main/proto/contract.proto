@@ -149,6 +149,20 @@ message writeBackRegisterResponse{
 
 }
 
+message echoRequest{
+	string hashRequest = 1;
+}
+
+message echoResponse{
+}
+
+message readyRequest{
+	string hashRequest = 1;
+}
+
+message readyResponse{
+}
+
 
 service BFTBanking {
 	rpc Ping(PingRequest) returns (PingResponse);
@@ -160,4 +174,6 @@ service BFTBanking {
 	rpc audit(auditRequest) returns (auditResponse);
 	rpc getHighestRegisterSequenceNumber (highestRegisterSequenceNumberRequest) returns (highestRegisterSequenceNumberResponse);
 	rpc writeBackRegister (writeBackRegisterRequest) returns (writeBackRegisterResponse);
+	rpc echo (echoRequest) returns (echoResponse);
+	rpc ready (readyRequest) returns (readyResponse);
 }

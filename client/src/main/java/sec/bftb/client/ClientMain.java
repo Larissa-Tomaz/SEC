@@ -103,25 +103,14 @@ public class ClientMain {
 							System.out.printf("That operation is unavailable.%n");
 							break;
 					}
-				}catch(StatusRuntimeException e){
-					if((e.getStatus().getCode().equals(Status.UNAVAILABLE.getCode()))){
-						logger.log("Server unavailable at the moment.");
-					}
-					else if((e.getStatus().getCode().equals(Status.DEADLINE_EXCEEDED.getCode()))){
-						logger.log("Time deadline for request excedeed. Request or Response may have been intentionally dropped.");
-					}
-					else
-						logger.log(e.getStatus().getDescription());
-				}catch(GeneralSecurityException e){
-					logger.log("Invalid key pair");
 				}catch(Exception ex){
-					logger.log("Exceeeption with message: " + ex.getMessage() + " and cause:" + ex.getCause());
+					logger.log("Exception with message: " + ex.getMessage());
 				} 	
 			}
 			myObj.close();
 
 		}catch(Exception ex){
-			logger.log("Exceeption with message: " + ex.getMessage() + " and cause:" + ex.getCause());
+			logger.log("Exception with message: " + ex.getMessage());
 		}
 	}
 }

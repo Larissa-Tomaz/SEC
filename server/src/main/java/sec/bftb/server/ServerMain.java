@@ -24,15 +24,20 @@ public class ServerMain {
 		}
 		
 
-		if (args.length != 1) {
-			logger.log("Failed to start server. Number of initial arguments is not supported: " + args.length);
+		if (args.length != 5) {
+			logger.log("Invalid Number of Arguments. Must be five: basePort - serverPort - maxByzantineFaults - isByzantine(0=false) - clearDB(0=false)");
 			System.exit(-1);
 		}
 
 		try {
-			int port = Integer.parseInt(args[0]);
+			int basePort = Integer.parseInt(args[0]);
+			int port = Integer.parseInt(args[1]);
+			int maxByzantineFaults = Integer.parseInt(args[2]);
+			boolean isByzantine = (Integer.parseInt(args[3]) != 0);
+			boolean clearDB = (Integer.parseInt(args[4]) != 0);
+
 			logger.log("Registering server port number: " + port);
-			ServerServiceImpl serverService = new ServerServiceImpl(port);
+			ServerServiceImpl serverService = new ServerServiceImpl(basePort, port, maxByzantineFaults, isByzantine, clearDB);
 			Server server = ServerBuilder
 					.forPort(port)
 					.addService(serverService)

@@ -16,8 +16,8 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
     private final int serverPort;
     private final Logger logger;
 
-	public ServerServiceImpl(int serverPort) throws IOException, ServerException{
-        this.server = new Server(serverPort);
+	public ServerServiceImpl(int basePort, int serverPort, int maxByzantineFaults, boolean isByzantine, boolean clearDB) throws IOException, ServerException{
+        this.server = new Server(basePort, serverPort ,maxByzantineFaults, isByzantine, clearDB);
         this.serverPort = serverPort;
         this.logger = new Logger("Server", "Service");
     }
@@ -142,5 +142,28 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 		}
 	}
 
+	@Override
+	public void echo(echoRequest request, StreamObserver<echoResponse> responseObserver) {
+		try{
+			server.receive_echo(request.getHashRequest());
+			responseObserver.onNext(echoResponse.newBuilder().build());
+			responseObserver.onCompleted();
+		}
+		catch(Exception e){
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+		}
+	}
+
+	@Override
+	public void ready(readyRequest request, StreamObserver<readyResponse> responseObserver) {
+		try{
+			server.receive_ready(request.getHashRequest());
+			responseObserver.onNext(readyResponse.newBuilder().build());
+			responseObserver.onCompleted();
+		}
+		catch(Exception e){
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+		}
+	}
 
 }

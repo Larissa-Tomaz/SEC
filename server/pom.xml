@@ -16,7 +16,12 @@
 
     <properties>
         <mainClass>sec.bftb.server.ServerMain</mainClass>
-        <port>8080</port>
+        <basePort>8090</basePort>
+        <port>8090</port>
+        <maxByzantineFaults>1</maxByzantineFaults>
+        <isByzantine>0</isByzantine>
+        <clearDB>0</clearDB>
+
     </properties>
 
     <dependencies>
@@ -81,7 +86,11 @@
                 <configuration>
                     <mainClass>${mainClass}</mainClass>
                     <arguments>
+                        <argument>${basePort}</argument>
                         <argument>${port}</argument>
+                        <argument>${maxByzantineFaults}</argument>
+                        <argument>${isByzantine}</argument>
+                        <argument>${clearDB}</argument>
                     </arguments>
                 </configuration>
             </plugin>

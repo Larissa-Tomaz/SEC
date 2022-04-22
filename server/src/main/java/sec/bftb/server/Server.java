@@ -12,11 +12,19 @@ import sec.bftb.grpc.BFTBankingGrpc;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
+
 import java.io.*;
 import java.security.*;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.*;
+
+import javax.sql.rowset.serial.SerialException;
 
 
 public class Server {
@@ -24,15 +32,25 @@ public class Server {
     public final float INITIAL_BALANCE = 50;
 	public final ServerRepo serverRepo;
     private final Logger logger;
-    private final int serverPort;
+    private final int serverPort, basePort;
+    private final int maxByzantineFaults, numberOfServers, byzantineQuorum;
+    private final boolean isByzantine;
+
     private AtomicInteger uncommitedTransferID = new AtomicInteger(0);
     private Map<String, List<Integer>> nonces = new TreeMap<>();
+    private ConcurrentHashMap<String,Integer> echos = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String,Integer> readies = new ConcurrentHashMap<>();
 
-	public Server(int server_port) throws IOException, ServerException{
-
-        serverRepo = new ServerRepo(server_port);
+	
+    public Server(int base_port, int server_port, int max_Byzantine_Faults, boolean is_Byzantine, boolean clear_DB) throws IOException, ServerException{
+        serverRepo = new ServerRepo(server_port, clear_DB);
         logger = new Logger("Server", "App");
         serverPort = server_port;
+        basePort = base_port;
+        maxByzantineFaults = max_Byzantine_Faults;
+        numberOfServers = (3 * max_Byzantine_Faults) + 1;
+        byzantineQuorum = (2 * max_Byzantine_Faults) + 1;
+        isByzantine = is_Byzantine;
     }
 
 	public synchronized String ping() {
@@ -85,7 +103,7 @@ public class Server {
         }  
         catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
     
@@ -164,7 +182,7 @@ public class Server {
         
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
 
@@ -196,6 +214,8 @@ public class Server {
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
                 throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
 
+            doubleEcho(CryptographicFunctions.hashString(new String(messageBytes.toByteArray())));
+            
             this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(sourcePublicKey), request.getNewBalance());
             this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(sourcePublicKey), request.getRegisterSequenceNumber());
             this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(sourcePublicKey), request.getRegisterSignature().toByteArray());
@@ -207,7 +227,7 @@ public class Server {
 
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
         
         return sendAmountResponse.newBuilder().build();
@@ -250,7 +270,7 @@ public class Server {
         }  
         catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
 
@@ -333,7 +353,7 @@ public class Server {
             return response;
         }  
         catch(GeneralSecurityException e){
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
 
@@ -362,6 +382,8 @@ public class Server {
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
                 throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
 
+            doubleEcho(CryptographicFunctions.hashString(new String(messageBytes.toByteArray())));
+
             this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(clientPublicKey), request.getNewBalance());
             this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSequenceNumber());
             this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSignature().toByteArray());
@@ -369,7 +391,7 @@ public class Server {
             
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
         return receiveAmountResponse.newBuilder().build();
     }
@@ -410,7 +432,7 @@ public class Server {
         }  
         catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
 
@@ -461,7 +483,7 @@ public class Server {
         }  
         catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new GeneralSecurityException(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
         }
     }
 
@@ -490,6 +512,7 @@ public class Server {
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
                 throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
 
+            doubleEcho(CryptographicFunctions.hashString(new String(messageBytes.toByteArray())));
             
             if(registerSequenceNumber > this.serverRepo.getVersionNumber(Base64.getEncoder().encodeToString(publicKey.toByteArray()))){
                 this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(publicKey.toByteArray()), balance);
@@ -500,9 +523,113 @@ public class Server {
             writeBackRegisterResponse response = writeBackRegisterResponse.newBuilder().build();
             return response;
         }  
-        catch(Exception e){
+        catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new Exception(e); 
+            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR); 
         }
+    }
+
+
+
+
+    public void receive_echo(String hashRequest){
+        int numberOfEchos;
+        if(echos.containsKey(hashRequest))
+            numberOfEchos = echos.get(hashRequest) + 1;
+        else
+            numberOfEchos = 1;
+        echos.put(hashRequest, numberOfEchos);
+    }
+
+
+    public void receive_ready(String hashRequest){
+        int numberOfReadies;
+        if(readies.containsKey(hashRequest))
+            numberOfReadies = readies.get(hashRequest) + 1;
+        else
+            numberOfReadies = 1;
+        readies.put(hashRequest, numberOfReadies);
+    }
+
+
+
+    public void doubleEcho(String hashRequest) throws Exception{
+        int cont, timeout = 0, numberOfEchos = 0;
+        String target; 
+        boolean sentReady = false;
+        BFTBankingGrpc.BFTBankingStub stub;
+        ManagedChannel channel;
+        ArrayList<ManagedChannel> channels = new ArrayList<>();
+        ArrayList<ManagedChannel> channels2 = new ArrayList<>();
+
+        echoRequest request = echoRequest.newBuilder().setHashRequest(hashRequest).build();
+        DoubleEchoObserver<echoResponse> echoObserver = new DoubleEchoObserver<>();
+        
+        for(cont = 0; cont < numberOfServers; cont++){
+            if((basePort + cont) != serverPort){
+                target = "localhost:" + (basePort + cont);
+                channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+                stub = BFTBankingGrpc.newStub(channel);
+                stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).echo(request, echoObserver);
+                channels.add(channel);
+            }
+            else{
+                if(echos.containsKey(hashRequest))
+                    numberOfEchos = echos.get(hashRequest) + 1;
+                else
+                    numberOfEchos = 1;
+                echos.put(hashRequest, numberOfEchos);
+            }
+        }
+        
+        if(!readies.containsKey(hashRequest))
+            readies.put(hashRequest, 0);  
+        
+        while(echos.get(hashRequest) < byzantineQuorum && readies.get(hashRequest) < byzantineQuorum){ //Introduce timeout after which server sends exception saying there was more than f different requests sent by the client
+            
+            if(timeout>500)
+                throw new ServerException(ErrorMessage.BYZANTINE_CLIENT_OR_MAX_SERVER_FAILURES);
+            
+            Thread.sleep(10);
+            if((readies.get(hashRequest) > maxByzantineFaults) && (!sentReady)){    //Amplification step
+                readyRequest request2 = readyRequest.newBuilder().setHashRequest(hashRequest).build();
+                DoubleEchoObserver<readyResponse> readyObserver = new DoubleEchoObserver<>();
+
+                for(cont = 0; cont < numberOfServers; cont++){
+                    if((basePort + cont) != serverPort){
+                        target = "localhost:" + (basePort + cont);
+                        channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+                        stub = BFTBankingGrpc.newStub(channel);
+                        stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ready(request2, readyObserver);
+                        channels2.add(channel);
+                    }
+                }
+                readies.put(hashRequest, readies.get(hashRequest) + 1);
+                sentReady = true;
+            }
+            timeout++;
+        }
+
+        if(!sentReady){                             
+            readyRequest request2 = readyRequest.newBuilder().setHashRequest(hashRequest).build();
+            DoubleEchoObserver<readyResponse> readyObserver = new DoubleEchoObserver<>();
+            
+            for(cont = 0; cont < numberOfServers; cont++){      //Retransmission step
+                if((basePort + cont) != serverPort){
+                    target = "localhost:" + (basePort + cont);
+                    channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+                    stub = BFTBankingGrpc.newStub(channel);
+                    stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ready(request2, readyObserver);
+                    channels2.add(channel);
+                }
+            }
+            Thread.sleep(50);
+        }
+
+        for(ManagedChannel c: channels)
+            c.shutdown();
+
+        for(ManagedChannel c: channels2)
+            c.shutdown();
     }
 }

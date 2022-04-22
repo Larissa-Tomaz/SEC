@@ -37,7 +37,7 @@ public class ServerRepo {
     private PreparedStatement statement = null;
     private ResultSet resultSet = null;
 
-    public ServerRepo(int serverId) throws ServerException {
+    public ServerRepo(int serverId, boolean clearDB) throws ServerException {
         this.logger = new Logger("Server", "SQL");
 
         Properties prop = new Properties();

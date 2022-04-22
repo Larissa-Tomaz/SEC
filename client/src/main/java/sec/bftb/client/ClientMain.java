@@ -63,12 +63,12 @@ public class ClientMain {
 							else
 								System.out.printf("Open command must have exactly 1 argument: Password.%n");
 							break;
-						/*case "send":
+						case "send":
 							if(command.length == 5)
 								user.send(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]),Float.parseFloat(command[4]));
 							else
 								System.out.printf("Send command must have exactly 4 arguments: Password senderUserID receiverUserID AmoutOfTransfer.%n");
-							break;*/
+							break;
 						case "check":
 							if(command.length == 3)
 								user.check(command[1], Integer.parseInt(command[2]));
@@ -81,12 +81,12 @@ public class ClientMain {
 							else
 								System.out.printf("Receive command must have exactly 3 arguments: Password UserID TransferId.%n");
 							break;
-						case "audit":
+						*/case "audit":
 							if(command.length == 3)
 								user.audit(command[1], Integer.parseInt(command[2]));
 							else
 								System.out.printf("Audit command must have exactly 2 arguments: Password UserID.%n");
-							break;*/
+							break;
 						
 						case "help":
 							System.out.printf("Avaliable operations:\n");

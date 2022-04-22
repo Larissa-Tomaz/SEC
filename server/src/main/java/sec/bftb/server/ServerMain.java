@@ -4,6 +4,8 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 import java.io.IOException;
+import java.util.Scanner;
+
 import sec.bftb.server.exceptions.ErrorMessage;
 import sec.bftb.server.exceptions.ServerException;
 
@@ -39,6 +41,13 @@ public class ServerMain {
 
 			// Server threads are running in the background.
 			logger.log("Server started on port: " + port);
+
+			new Thread(() -> {
+				System.out.println("<Press enter to shutdown>");
+				new Scanner(System.in).nextLine();
+				server.shutdown();
+				System.exit(0);
+			}).start();
 
 			server.awaitTermination();
 			

@@ -104,7 +104,7 @@ public class ServerRepo {
         }
     }*/
 
-    public void openAccount(String pubKey, Float balance, String signatureRegister) throws SQLException {
+    public void openAccount(String pubKey, Float balance, byte[] signatureRegister) throws SQLException {
         try {
             String query = "INSERT INTO account (pubKey, balance, versionNumber, signatureRegister) VALUES (?, ?, ?, ?)";
             connection = this.newConnection();
@@ -112,7 +112,7 @@ public class ServerRepo {
             statement.setString(1, pubKey);
             statement.setFloat(2, balance);
             statement.setInt(3, 0);
-            statement.setString(4, signatureRegister);
+            statement.setBytes(4, signatureRegister);
             statement.executeUpdate();
         } finally {
             //closeConnection();
@@ -160,7 +160,7 @@ public class ServerRepo {
 
     public List<Movement> getPendingMovements(String pubKey) throws SQLException{
         try{ 
-            String query = "SELECT movementId,amount,signatureRegister,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'PENDING'";
+            String query = "SELECT movementId,amount,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'PENDING'";
             ArrayList<Movement> movements = new ArrayList<>();
             connection = this.newConnection();
             statement = connection.prepareStatement(query);
@@ -171,12 +171,12 @@ public class ServerRepo {
                 String source = resultSet.getString("sourceAccount");
                 String destination = resultSet.getString("destinationAccount");
                 String status = resultSet.getString("transferStatus");
-                String signature = resultSet.getString("signatureRegister");
+                byte[] signature = resultSet.getBytes("signatureMovement");
                 int transferId = resultSet.getInt("movementId");      
                 float amount = resultSet.getFloat("amount");
 
-                Movement mov = Movement.newBuilder().setMovementID(transferId)
-                .setMovementSignature(ByteString.copyFrom(signature.getBytes())).setAmount(amount).setStatus(status).build();
+                Movement mov = Movement.newBuilder().setMovementID(transferId).setMovementSignature(ByteString.copyFrom(signature))
+                .setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(source))).setAmount(amount).setStatus(status).build();
 
                 movements.add(mov);
             }
@@ -190,8 +190,8 @@ public class ServerRepo {
 
     public List<Movement> getCompletedMovements(String pubKey) throws SQLException{
         try{ 
-            String query = "SELECT movementId,amount,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'APPROVED'";
-            String query2 = "SELECT movementId,amount,sourceAccount,destinationAccount,transferStatus FROM movement WHERE sourceAccount = ? and transferStatus = 'APPROVED'";
+            String query = "SELECT movementId,amount,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'APPROVED'";
+            String query2 = "SELECT movementId,amount,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE sourceAccount = ? and transferStatus = 'APPROVED'";
 
             ArrayList<Movement> movements = new ArrayList<>();
             connection = this.newConnection();
@@ -203,11 +203,12 @@ public class ServerRepo {
                 String source = resultSet.getString("sourceAccount");
                 String destination = resultSet.getString("destinationAccount");
                 String status = resultSet.getString("transferStatus");
+                byte[] signature = resultSet.getBytes("signatureMovement");
                 int transferId = resultSet.getInt("movementId");      
                 float amount = resultSet.getFloat("amount");
 
-                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount)
-                .setStatus(status).setDirectionOfTransfer("Received").build();
+                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setMovementSignature(ByteString.copyFrom(signature))
+                .setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(source))).setStatus(status).setDirectionOfTransfer("Received").build();
 
                 movements.add(mov);
             }
@@ -220,11 +221,12 @@ public class ServerRepo {
                 String source = resultSet.getString("sourceAccount");
                 String destination = resultSet.getString("destinationAccount");
                 String status = resultSet.getString("transferStatus");
+                byte[] signature = resultSet.getBytes("signatureMovement");
                 int transferId = resultSet.getInt("movementId");      
                 float amount = resultSet.getFloat("amount");
 
-                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount)
-                .setStatus(status).setDirectionOfTransfer("Sent").build();
+                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setMovementSignature(ByteString.copyFrom(signature))
+                .setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(source))).setStatus(status).setDirectionOfTransfer("Sent").build();
 
                 movements.add(mov);
             }
@@ -238,16 +240,17 @@ public class ServerRepo {
     
 
 
-    public void addTransfer(String srcPubKey, String destPubKey, Float amount, int movementId, String transferStatus) throws SQLException {
+    public void addTransfer(String srcPubKey, String destPubKey, Float amount, int movementId, String transferStatus, byte[] movementSignature) throws SQLException {
         try {
-            String query = "INSERT INTO movement (movementId, amount, sourceAccount, destinationAccount, transferStatus) VALUES (?, ?, ?, ?, ?)";
+            String query = "INSERT INTO movement (movementId, amount, signatureMovement, sourceAccount, destinationAccount, transferStatus) VALUES (?, ?, ?, ?, ?, ?)";
             connection = this.newConnection();
             statement = connection.prepareStatement(query);
             statement.setInt(1, movementId);
             statement.setFloat(2, amount);
-            statement.setString(3, srcPubKey);
-            statement.setString(4, destPubKey);
-            statement.setString(5, transferStatus);
+            statement.setBytes(3, movementSignature);
+            statement.setString(4, srcPubKey);
+            statement.setString(5, destPubKey);
+            statement.setString(6, transferStatus);
             statement.executeUpdate();
         } finally {
             //closeConnection();
@@ -323,6 +326,7 @@ public class ServerRepo {
         }
     }
 
+
     public int getVersionNumber(String pubKey) throws SQLException {
         try {
             String query = "SELECT versionNumber FROM account WHERE pubKey=?";
@@ -342,7 +346,22 @@ public class ServerRepo {
         }
     }
 
-    public String getSignature(String pubKey) throws SQLException {
+    public void updateVersionNumber(String pubKey, int newVersionNumber) throws SQLException {
+        try {
+            String query = "UPDATE account SET versionNumber=? WHERE pubKey=?";
+
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setInt(1, newVersionNumber);
+            statement.setString(2, pubKey);
+            statement.executeUpdate();
+        } finally {
+            //closeConnection();
+        }
+    }
+
+
+    public byte[] getSignature(String pubKey) throws SQLException {
         try {
             String query = "SELECT signatureRegister FROM account WHERE pubKey=?";
             connection = this.newConnection();
@@ -351,12 +370,26 @@ public class ServerRepo {
 
             resultSet = statement.executeQuery();
             if (resultSet.next()) {
-                return resultSet.getString("signatureRegister");             
+                return resultSet.getBytes("signatureRegister");             
             }
             else{
-                return "-1"; 
+                return new byte[-1]; 
             }
         } finally{
+            //closeConnection();
+        }
+    }
+
+    public void updateSignature(String pubKey, byte[] newSignature) throws SQLException {
+        try {
+            String query = "UPDATE account SET signatureRegister=? WHERE pubKey=?";
+
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setBytes(1, newSignature);
+            statement.setString(2, pubKey);
+            statement.executeUpdate();
+        } finally {
             //closeConnection();
         }
     }

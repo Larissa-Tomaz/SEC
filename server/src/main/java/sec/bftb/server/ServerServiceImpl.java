@@ -50,10 +50,17 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void sendAmount(sendAmountRequest request, StreamObserver<sendAmountResponse> responseObserver) {
 		try{
-			sendAmountResponse response = server.send_amount(request.getPublicKeySender(), request.getPublicKeyReceiver(), 
-			request.getAmount(), request.getSequenceNumber(), request.getHashMessage());
-			responseObserver.onNext(response);
-			responseObserver.onCompleted();
+			if(!request.getIsValidated()){
+				sendAmountResponse response = server.prepare_send_amount(request.getPublicKeySender(), request.getPublicKeyReceiver(), 
+				request.getAmount(), request.getSequenceNumber(), request.getHashMessage());
+				responseObserver.onNext(response);
+				responseObserver.onCompleted();
+			}
+			else{
+				sendAmountResponse response = server.send_amount(request);
+				responseObserver.onNext(response);
+				responseObserver.onCompleted();
+			}
 		}
 		catch (Exception e){
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
@@ -91,7 +98,20 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void audit(auditRequest request, StreamObserver<auditResponse> responseObserver) {
 		try{
-			auditResponse response = server.audit(request.getPublicKeyClient(),
+			auditResponse response = server.audit(request.getPublicKeyClient(), request.getSequenceNumber());
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();	
+		}
+		catch (Exception e){
+			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+		}
+	}
+
+
+	@Override
+	public void getHighestRegisterSequenceNumber(highestRegisterSequenceNumberRequest request, StreamObserver<highestRegisterSequenceNumberResponse> responseObserver) {
+		try{
+			highestRegisterSequenceNumberResponse response = server.getHighestRegSeqNumber(request.getPublicKeyClient(), 
 			request.getSequenceNumber(), request.getHashMessage());
 			responseObserver.onNext(response);
 			responseObserver.onCompleted();	

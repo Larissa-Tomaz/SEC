@@ -7,7 +7,8 @@ message Movement {
 	float amount = 2;
 	string status = 3;
 	bytes movementSignature = 4;
-	string directionOfTransfer = 5;
+	bytes signatureKey = 5;
+	string directionOfTransfer = 6;
 }
 
 message PingRequest {
@@ -35,14 +36,24 @@ message sendAmountRequest{
 	bytes publicKeySender = 1;
 	bytes publicKeyReceiver = 2;
 	float amount = 3;
-	int32 sequenceNumber = 4;
-	bytes hashMessage = 5;
+	int32 transferId = 4;
+	bytes movementSignature = 5;
+	float newBalance = 6;
+	int32 registerSequenceNumber = 7;
+	bytes registerSignature = 8;
+	int32 sequenceNumber = 9;
+	bytes hashMessage = 10;
+	bool isValidated = 11;
 }
 
 message sendAmountResponse{
 	int32 transferId = 1;
-	int32 sequenceNumber = 2;
-	bytes hashMessage = 3; 
+	float newBalance = 2;
+	float oldBalance = 3;
+	int32 registerSequenceNumber = 4;
+	bytes registerSignature = 5;
+	int32 sequenceNumber = 6;
+	bytes hashMessage = 7; 
 }
 
 message checkAccountRequest{
@@ -91,7 +102,6 @@ message receiveAmountResponse{
 message auditRequest{
 	bytes publicKeyClient = 1;
 	int32 sequenceNumber = 2;
-	bytes hashMessage = 3;
 }
 
 message auditResponse{
@@ -101,14 +111,17 @@ message auditResponse{
 }
 
 message highestRegisterSequenceNumberRequest{
-	int32 sequenceNumber = 1;
-	bytes hashMessage = 2;
+	bytes publicKeyClient = 1;
+	int32 sequenceNumber = 2;
+	bytes hashMessage = 3;
 }
 
 message highestRegisterSequenceNumberResponse{
-	int32 highSeqNumber = 1;
-	int32 sequenceNumber = 2;
-	bytes hashMessage = 3;
+	float balance = 1;
+	int32 registerSequenceNumber = 2;
+	bytes registerSignature = 3;
+	int32 sequenceNumber = 4;
+	bytes hashMessage = 5;
 }
 
 

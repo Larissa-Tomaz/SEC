@@ -84,10 +84,17 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void receiveAmount(receiveAmountRequest request, StreamObserver<receiveAmountResponse> responseObserver) {
 		try{
-			receiveAmountResponse response = server.receive_amount(request.getPublicKeyClient(), 
-			request.getMovementId(), request.getSequenceNumber(), request.getHashMessage());
-			responseObserver.onNext(response);
-			responseObserver.onCompleted();
+			if(!request.getIsValidated()){
+				receiveAmountResponse response = server.prepare_receive_amount(request.getPublicKeyClient(), 
+				request.getMovementId(), request.getSequenceNumber(), request.getHashMessage());
+				responseObserver.onNext(response);
+				responseObserver.onCompleted();
+			}
+			else{
+				receiveAmountResponse response = server.receive_amount(request);
+				responseObserver.onNext(response);
+				responseObserver.onCompleted();
+			}
 		}
 		catch (Exception e){
 			responseObserver.onError(INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());

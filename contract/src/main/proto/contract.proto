@@ -90,13 +90,23 @@ message checkMovementResponse{
 message receiveAmountRequest{
 	bytes publicKeyClient = 1;
 	int32 movementId = 2;
-	int32 sequenceNumber = 3;
-	bytes hashMessage = 4;
+	bytes movementSignature = 3;
+	float newBalance = 4;
+	int32 registerSequenceNumber = 5;
+	bytes registerSignature = 6;
+	int32 sequenceNumber = 7;
+	bytes hashMessage = 8;
+	bool isValidated = 9;
 }
 
 message receiveAmountResponse{
-	int32 sequenceNumber = 1;
-	bytes hashMessage = 2;
+	Movement movement = 1;
+	float newBalance = 2;
+	float oldBalance = 3;
+	int32 registerSequenceNumber = 4;
+	bytes registerSignature = 5;
+	int32 sequenceNumber = 6;
+	bytes hashMessage = 7;
 }
 
 message auditRequest{

@@ -158,6 +158,38 @@ public class ServerRepo {
     }
 
 
+    public Movement getMovement(int transferID) throws SQLException{
+        try{ 
+            String query = "SELECT movementId,amount,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE movementId = ? and transferStatus = 'PENDING'";
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setInt(1, transferID);
+
+            resultSet = statement.executeQuery();
+            if (resultSet.next()) {         
+            
+                String source = resultSet.getString("sourceAccount");
+                String destination = resultSet.getString("destinationAccount");
+                String status = resultSet.getString("transferStatus");
+                byte[] signature = resultSet.getBytes("signatureMovement");
+                int transferId = resultSet.getInt("movementId");      
+                float amount = resultSet.getFloat("amount");
+
+                Movement mov = Movement.newBuilder().setMovementID(transferId).setMovementSignature(ByteString.copyFrom(signature))
+                .setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(source))).setAmount(amount).setStatus(status).build();
+                
+                return mov;
+            }
+            else{
+                return Movement.newBuilder().build();
+            }
+            
+        } finally {
+            //closeConnection();
+        }
+
+    }
+
     public List<Movement> getPendingMovements(String pubKey) throws SQLException{
         try{ 
             String query = "SELECT movementId,amount,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'PENDING'";
@@ -257,34 +289,21 @@ public class ServerRepo {
         }
     }
 
-    public int receiveAmount(int id, String newStatus, float balance) throws SQLException {
+    public int receiveAmount(int id, String newStatus, byte[] signatureMovement) throws SQLException { //Change function to insert new row instead of updating
         try {
-            String query2 = "SELECT amount, destinationAccount FROM movement WHERE movementId=?";
-            String query = "UPDATE movement SET transferStatus=? WHERE movementId=?";
-            String query3 = "UPDATE account SET balance=? WHERE pubKey=?";
+            String query = "UPDATE movement SET transferStatus=? WHERE movementId=?";   
+            String query2 = "UPDATE movement SET signatureMovement=? WHERE movementId=?";
 
             connection = this.newConnection();
-            statement = connection.prepareStatement(query2);
-            statement.setInt(1, id);
-
-            resultSet = statement.executeQuery();
-            float amount = 0;
-            String pubKey = "";
-            if (!resultSet.next()) 
-                return -1;
-            
-            amount = resultSet.getFloat("amount");  
-            pubKey = resultSet.getString("destinationAccount");
 
             statement = connection.prepareStatement(query);
             statement.setString(1, newStatus);
             statement.setInt(2, id);
             statement.executeUpdate();
 
-            float newBalance = amount + balance;
-            statement = connection.prepareStatement(query3);
-            statement.setFloat(1, newBalance);
-            statement.setString(2, pubKey);
+            statement = connection.prepareStatement(query2);
+            statement.setBytes(1, signatureMovement);
+            statement.setInt(2, id);
             statement.executeUpdate();
             return 0;
 

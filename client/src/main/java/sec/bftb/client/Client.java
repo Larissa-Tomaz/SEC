@@ -358,15 +358,16 @@ public class Client {
                     signatureRegister = balanceAux + ":" + seqNumberAux;
                     if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(), signatureReplyRegister)){
                         byzantineResponsesCont++;
-                        sendAmountResponses.remove(response);          
+                        sendAmountResponses.remove(response);
+                        checkByzantineFaultQuantity(byzantineResponsesCont);
+                        continue;          
                     }
-                    else if(seqNumberAux > seqNumberFinal){
-                            seqNumberFinal = seqNumberAux;
-                            balanceFinal = response.getNewBalance();
-                        if(transferIDAux > transferIDFinal)
-                            transferIDFinal = transferIDAux;
+                    if(seqNumberAux > seqNumberFinal){
+                        seqNumberFinal = seqNumberAux;
+                        balanceFinal = response.getNewBalance();
                     }
-                    checkByzantineFaultQuantity(byzantineResponsesCont);
+                    if(transferIDAux > transferIDFinal)
+                        transferIDFinal = transferIDAux;    
                 }
 
                 List<Integer> nonce = new ArrayList<>(sequenceNumber);
@@ -685,15 +686,22 @@ public class Client {
         }
     }
 
-    /*
-    public void receive(String password, int userID, int transferID){
+    
+    public void receive(String password, int userID, int transferID) throws Exception{
         ByteArrayOutputStream messageBytes;
-        String hashMessage;
-        int sequenceNumber;
-        ByteString encryptedHashMessage;
+        String hashMessage, hashMovement, hashRegister;
+        boolean isValidated = false;
+        int sequenceNumber, byzantineResponsesCont = 0;
+        ByteString encryptedHashMessage, encryptedHashMovement, encryptedHashRegister;
         byte[] publicKeyBytes;
         Key privateKey;
         ArrayList<ServerFrontend> frontends = new ArrayList<>();
+
+        String signatureReplyRegister, signatureRegister, movementString;
+        int seqNumberAux, transferIDAux, transferIDFinal = -1, seqNumberFinal = -1;
+        float balanceAux, balanceFinal = 0, amountAux, amountFinal = -1;
+        ByteString signatureAux;
+        Movement movementAux, movementFinal;
 
 
         sequenceNumber = generateNonce(userID);
@@ -706,6 +714,8 @@ public class Client {
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(transferID).getBytes());
             messageBytes.write(":".getBytes());
+            messageBytes.write(Boolean.toString(isValidated).getBytes());
+            messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(sequenceNumber).getBytes());
             
             hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
@@ -717,42 +727,217 @@ public class Client {
             return;
         }
 
-		
         receiveAmountRequest request = receiveAmountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
-        .setMovementId(transferID).setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
+        .setIsValidated(isValidated).setMovementId(transferID).setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
 
-		frontend = new ServerFrontend(target);
-        receiveAmountResponse response = frontend.receiveAmount(request);
-        frontend.close();
-        if(response.getSequenceNumber() != sequenceNumber + 1){
-            logger.log("Invalid sequence number. Possible replay attack detected.");
-            return;
-        }
+        ServerObserver<receiveAmountResponse> serverObs = new ServerObserver<receiveAmountResponse>();
 
-        
-        try{
-            messageBytes = new ByteArrayOutputStream();
-            messageBytes.write(String.valueOf(response.getSequenceNumber()).getBytes());
+        synchronized(serverObs){
+            for(cont = 0; cont < numberOfServers; cont++){
+                target = host + ":" + (basePort + cont);
+                frontend = new ServerFrontend(target);
+                frontend.receiveAmount(request, serverObs);
+                frontends.add(frontend);
+            }
             
-            serverPublicKey = CryptographicFunctions.getServerPublicKey("../crypto/");
-            String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
-            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
-                logger.log("Message reply integrity compromissed.");
+            System.out.println("Sent all requests.");
+            do {
+                try{
+                    serverObs.wait(2000);
+                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
+                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
+                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
+                }catch (InterruptedException e) {
+                    System.out.println("Wait interrupted");
+                    throw e;
+                }
+            }
+            while(serverObs.getResponseCollector().size() < byzantineQuorum && 
+            serverObs.getLogicExceptionCollector().size() < byzantineQuorum && 
+            serverObs.getSystemExceptionCollector().size() <= possibleFailures); 
+            
+            ArrayList<receiveAmountResponse> receiveAmountResponses = serverObs.getResponseCollector(); 
+            ArrayList<StatusRuntimeException> receiveAmountLogicExceptions = serverObs.getLogicExceptionCollector();
+            ArrayList<Exception> receiveAmountSystemExceptions = serverObs.getSystemExceptionCollector();
+            
+            if(receiveAmountLogicExceptions.size() >= byzantineQuorum || receiveAmountSystemExceptions.size() > possibleFailures){
+                checkExceptionQuantity(receiveAmountLogicExceptions, receiveAmountSystemExceptions);
+            }
+
+
+            try{
+                
+                ArrayList<receiveAmountResponse> receiveAmountResponsesCopy = new ArrayList<>(receiveAmountResponses);
+                for(receiveAmountResponse response: receiveAmountResponsesCopy){ //Remove altered (message integrity compromissed) or duplicated (replay attacks) replies
+                    
+                    checkByzantineFaultQuantity(byzantineResponsesCont);
+
+                    System.out.println(response);
+                    if(response.getSequenceNumber() != sequenceNumber + 1){
+                        logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
+                        receiveAmountResponses.remove(response);
+                        byzantineResponsesCont++;
+                        continue;
+                    }
+                    messageBytes = new ByteArrayOutputStream();
+                    messageBytes.write(String.valueOf(response.getMovement()).getBytes());
+                    messageBytes.write(":".getBytes());
+                    messageBytes.write(String.valueOf(response.getNewBalance()).getBytes());
+                    messageBytes.write(":".getBytes());
+                    messageBytes.write(String.valueOf(response.getSequenceNumber()).getBytes());
+                    
+                    serverPublicKey = CryptographicFunctions.getServerPublicKey("../crypto/");
+                    String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
+                    if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
+                        logger.log("One of the replica's reply message had its integrity compromissed.");
+                        receiveAmountResponses.remove(response);
+                        byzantineResponsesCont++;           
+                    }
+                }
+
+
+                receiveAmountResponsesCopy = new ArrayList<>(receiveAmountResponses);
+                for(receiveAmountResponse response : receiveAmountResponsesCopy){ //Obtain valid <highestSeqNumber, balance> and valid <TransferID, amount, status> 
+                    seqNumberAux = response.getRegisterSequenceNumber(); 
+                    signatureAux = response.getRegisterSignature(); 
+                    balanceAux = response.getOldBalance();
+
+                    signatureReplyRegister = CryptographicFunctions.decrypt(publicKeyBytes, signatureAux.toByteArray()); 
+                    signatureRegister = balanceAux + ":" + seqNumberAux;
+                    if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(), signatureReplyRegister)){
+                        byzantineResponsesCont++;
+                        receiveAmountResponses.remove(response);          
+                    }
+
+                    movementAux = response.getMovement();
+                    signatureReplyRegister = CryptographicFunctions.decrypt(movementAux.getSignatureKey().toByteArray(), 
+                    movementAux.getMovementSignature().toByteArray()); 
+                    signatureRegister = movementAux.getMovementID() + ":" + movementAux.getAmount() + ":" + movementAux.getStatus();
+                    if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(), signatureReplyRegister)){
+                        byzantineResponsesCont++;
+                        receiveAmountResponses.remove(response);          
+                    }
+                    else if(seqNumberAux > seqNumberFinal){
+                            seqNumberFinal = seqNumberAux;
+                            balanceFinal = response.getNewBalance();
+                            amountFinal = movementAux.getAmount();
+                    }
+                    checkByzantineFaultQuantity(byzantineResponsesCont);
+                }
+
+                List<Integer> nonce = new ArrayList<>(sequenceNumber);
+                nonces.put(userID, nonce);
+
+                for(ServerFrontend frontend : frontends)
+                    frontend.close();
+
+            }
+            catch(Exception e){
+                if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
+                    logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+                else if(e.getMessage().equals("maxByzantineFaults")){
+                    Thread.sleep(3000);
+                    logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
+                }
+                else{
+                    Thread.sleep(3000);
+                    logger.log("More than " + possibleFailures + " server(s) were unresponsive. Please repeat the request...");
+                }
+                for(ServerFrontend frontend : frontends)
+                    frontend.close();
                 return;
             }
-        
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(userID, nonce);
+        }
 
-            System.out.println("Transfer accepted, amount received.");
+
+        //Preparation of second request which writes definitevely the values got from first request (isValidated = true)
+        
+        isValidated = true;
+        
+        hashMovement = CryptographicFunctions.hashString(transferID + ":" + amountFinal + ":APPROVED");
+        encryptedHashMovement = ByteString.copyFrom(CryptographicFunctions
+        .encrypt(privateKey, hashMovement.getBytes()));
+
+        seqNumberFinal++;
+        hashRegister = CryptographicFunctions.hashString(balanceFinal + ":" + seqNumberFinal);
+        encryptedHashRegister = ByteString.copyFrom(CryptographicFunctions
+        .encrypt(privateKey, hashRegister.getBytes()));
+    
+
+        sequenceNumber = generateNonce(userID);
+        try{
+            privateKey = CryptographicFunctions.getClientPrivateKey(password);
+            publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
+            
+            messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(Boolean.toString(isValidated).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            
+            hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
+            encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
+            .encrypt(privateKey, hashMessage.getBytes()));
         }
-        catch(Exception e){
+        catch (Exception e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+            return;
         }
+        
+        request = receiveAmountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
+        .setMovementId(transferID).setMovementSignature(encryptedHashMovement)
+        .setNewBalance(balanceFinal).setRegisterSequenceNumber(seqNumberFinal)
+        .setRegisterSignature(encryptedHashRegister).setSequenceNumber(sequenceNumber)
+        .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
+
+
+        ServerObserver<receiveAmountResponse> serverObs2 = new ServerObserver<receiveAmountResponse>();
+
+        synchronized(serverObs2){
+            for(cont = 0; cont < numberOfServers; cont++){
+                target = host + ":" + (basePort + cont);
+                frontend = new ServerFrontend(target);
+                frontend.receiveAmount(request, serverObs2);
+                frontends.add(frontend);
+            }
+            
+            System.out.println("Sent all requests.");
+            do {
+                try{
+                    serverObs2.wait(2000);
+                    System.out.println("ResponseCollector size: " + serverObs2.getResponseCollector().size());
+                    System.out.println("LogicExceptionCollector size: " + serverObs2.getLogicExceptionCollector().size());
+                    System.out.println("SystemExceptionCollector size: " + serverObs2.getSystemExceptionCollector().size());
+                }catch (InterruptedException e) {
+                    System.out.println("Wait interrupted");
+                    throw e;
+                }
+            }
+            while(serverObs2.getResponseCollector().size() < byzantineQuorum && 
+            serverObs2.getLogicExceptionCollector().size() < byzantineQuorum && 
+            serverObs2.getSystemExceptionCollector().size() <= possibleFailures); 
+            
+            ArrayList<StatusRuntimeException> sendAmountLogicExceptions2 = serverObs2.getLogicExceptionCollector();
+            ArrayList<Exception> sendAmountSystemExceptions2 = serverObs2.getSystemExceptionCollector();
+            
+            if(sendAmountLogicExceptions2.size() >= byzantineQuorum || sendAmountSystemExceptions2.size() > possibleFailures){
+                checkExceptionQuantity(sendAmountLogicExceptions2, sendAmountSystemExceptions2);
+            }
+
+            List<Integer> nonce = new ArrayList<>(sequenceNumber);
+                nonces.put(userID, nonce);
+
+            for(ServerFrontend frontend : frontends)
+                frontend.close();
+        }
+        System.out.println("Transfer accepted, amount received.");
+    
     }
 
 
-    */
+    
     //----------------------------Audit-----------------------------
 
 

@@ -75,13 +75,13 @@ public class ClientMain {
 							else 
 								System.out.printf("Check command must have exactly 2 arguments: Password UserID.%n");
 							break;
-						/*case "receive":
+						case "receive":
 							if(command.length == 4)
 								user.receive(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]));
 							else
 								System.out.printf("Receive command must have exactly 3 arguments: Password UserID TransferId.%n");
 							break;
-						*/case "audit":
+						case "audit":
 							if(command.length == 3)
 								user.audit(command[1], Integer.parseInt(command[2]));
 							else

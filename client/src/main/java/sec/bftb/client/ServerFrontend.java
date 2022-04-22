@@ -33,6 +33,9 @@ public class ServerFrontend {
     public void getHighestRegisterSequenceNumber(highestRegisterSequenceNumberRequest request, ServerObserver<highestRegisterSequenceNumberResponse> serverObs){
         stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).getHighestRegisterSequenceNumber(request,serverObs);
     }
+
+    public void writeBackRegister(writeBackRegisterRequest request, ServerObserver<writeBackRegisterResponse> serverObs){ stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).writeBackRegister(request,serverObs); }
+
     
     public void close() {
         channel.shutdownNow();

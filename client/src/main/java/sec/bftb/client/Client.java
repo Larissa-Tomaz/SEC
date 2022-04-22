@@ -84,21 +84,27 @@ public class Client {
     public void checkExceptionQuantity(ArrayList<StatusRuntimeException> logicExceptions,
         ArrayList<Exception> systemExceptions) throws Exception{
         
-        
+        int i = 0, j= 0,frequencyAux, frequencyFinal = -1, mostCommonPosition = 0;
         if(logicExceptions.size() >= byzantineQuorum){
-            throw new Exception(logicExceptions.get(0)); //Change later(identify majority of exceptions and only throw that one while regarding the others as having come from byzantine clients)
-        }  //For byzantine exceptions increment unavailable counter and check again if it's > possible faults before returning majority exception
-        
+            
+            for(i=0; i<logicExceptions.size()-1; i++){
+                frequencyAux = 0;
+                for(j=i+1; j<logicExceptions.size();j++){
+                    if(logicExceptions.get(i).getMessage() == logicExceptions.get(j).getMessage()){
+                        frequencyAux++;
+                    }
+                }
+                if(frequencyAux > frequencyFinal){
+                        frequencyFinal = frequencyAux;
+                        mostCommonPosition = i;
+                }
+            }        
+            throw new Exception(logicExceptions.get(mostCommonPosition)); //Change later(identify majority of exceptions and only throw that one while regarding the others as having come from byzantine clients)
+        }  
+    
         else if(systemExceptions.size() > possibleFailures){
             throw new Exception("maxCrashFaults");
         }
-        
-        /*else{ //possibly unecessary
-            for (StatusRuntimeException ex : exceptions)
-                logger.log("Exception with message: " + ex.getMessage());
-            logger.log("Please retry operation...");
-            return false;
-        }*/
     }
 
 
@@ -532,7 +538,7 @@ public class Client {
         float balanceAux, balanceFinal = 0, transferAmountFinal = -1;
         boolean isValid = true;
         int n=0, j = 0, sizeFrequencyAux, sizeFrequencyFinal = -1, mostCommonPosition = -1;
-        ByteString signatureAux;
+        ByteString signatureAux, signatureFinal = ByteString.copyFrom("INITIALIZED".getBytes());
 
 
         try{
@@ -633,6 +639,7 @@ public class Client {
                     if(seqNumberAux > seqNumberFinal){
                             seqNumberFinal = seqNumberAux;
                             balanceFinal = balanceAux;
+                            signatureFinal = signatureAux;
                     }
                     checkByzantineFaultQuantity(byzantineResponsesCont);
                 }//
@@ -674,6 +681,8 @@ public class Client {
 
                 List<Integer> nonce = new ArrayList<>(sequenceNumber);
                 nonces.put(userID, nonce);
+
+                writeBackRegister(userID, password, publicKeyBytes, balanceFinal, seqNumberFinal, signatureFinal);
 
                 
                 if(checkAccountResponses.get(i).getPendingMovementsList().size() == 0)
@@ -1101,7 +1110,7 @@ public class Client {
                     ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(auditResponses.get(i).getConfirmedMovementsList());
                     
                     ArrayList<Movement> confirmedMovements = new ArrayList<Movement>(orderedMovements);
-                    for(Movement mov: orderedMovements){ //Change later to reflect real history of transactions(instead of changing status to approved in db create new line with same info + status approved)
+                    for(Movement mov: orderedMovements){ 
                         if(mov.getStatus().equals("APPROVED")){
                             int movementIDAux = mov.getMovementID();
                             for(i = 0 ; i < orderedMovements.size() - 1 ; i++){
@@ -1115,14 +1124,9 @@ public class Client {
                     }
                     
                     System.out.println("Movement History:");
-                    for(Movement mov : confirmedMovements){ //Change later to reflect real history of transactions(instead of changing status to approved in db create new line with same info + status approved)
-                        //if(mov.getStatus().equals("APPROVED")){
-                          //  System.out.println("Movement " + mov.getMovementID() + ":");
-                            //System.out.println("Status: APPROVED, " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount());
-                        //}
-                        
-                        System.out.println("Movement " + mov.getMovementID() + ":");
-                        System.out.println("< Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
+                    for(Movement mov : confirmedMovements){
+                        System.out.println("  -Movement " + mov.getMovementID() + ":");
+                        System.out.println("    < Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
                     }
                 }
 
@@ -1274,6 +1278,85 @@ public class Client {
                 frontend.close();
 
             return seqNumberFinal;
+        }
+    }
+
+    public void writeBackRegister(int userID, String password, byte[] publicKeyBytes, float balance, int registerSequenceNumber, ByteString registerSignature) throws Exception{
+
+        ByteArrayOutputStream messageBytes;
+        ArrayList<ServerFrontend> frontends = new ArrayList<>();
+        int sequenceNumber = generateNonce(userID);
+        
+        
+        try{
+            privateKey = CryptographicFunctions.getClientPrivateKey(password);
+            publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
+            
+            messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(registerSequenceNumber).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(registerSignature.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balance).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            
+            String hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
+            ByteString encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
+            .encrypt(privateKey, hashMessage.getBytes()));
+            
+            
+            writeBackRegisterRequest request = writeBackRegisterRequest.newBuilder().setPublicKey(ByteString.copyFrom(publicKeyBytes))
+            .setBalance(balance).setRegisterSequenceNumber(registerSequenceNumber).setRegisterSignature(registerSignature)
+            .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
+
+
+            ServerObserver<writeBackRegisterResponse> serverObs = new ServerObserver<writeBackRegisterResponse>();
+
+            synchronized(serverObs){
+                for(cont = 0; cont < numberOfServers; cont++){
+                    target = host + ":" + (basePort + cont);
+                    frontend = new ServerFrontend(target);
+                    frontend.writeBackRegister(request, serverObs);
+                    frontends.add(frontend);
+                }
+                
+                System.out.println("Sent all requests.");
+                do {
+                    try{
+                        serverObs.wait(2000);
+                        System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
+                        System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
+                        System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
+                    }catch (InterruptedException e) {
+                        System.out.println("Wait interrupted");
+                        throw e;
+                    }
+                }
+                while(serverObs.getResponseCollector().size() < byzantineQuorum && 
+                serverObs.getLogicExceptionCollector().size() < byzantineQuorum && 
+                serverObs.getSystemExceptionCollector().size() <= possibleFailures); 
+                
+                ArrayList<StatusRuntimeException> writeBackRegisterLogicExceptions = serverObs.getLogicExceptionCollector();
+                ArrayList<Exception> writeBackRegisterSystemExceptions = serverObs.getSystemExceptionCollector();
+                
+                if(writeBackRegisterLogicExceptions.size() >= byzantineQuorum || writeBackRegisterSystemExceptions.size() > possibleFailures){
+                    checkExceptionQuantity(writeBackRegisterLogicExceptions, writeBackRegisterSystemExceptions);
+                }
+
+                List<Integer> nonce = new ArrayList<>(sequenceNumber);
+                    nonces.put(userID, nonce);
+
+                for(ServerFrontend frontend : frontends)
+                    frontend.close();
+            }
+        }catch(Exception e){
+            for(ServerFrontend frontend : frontends)
+                frontend.close();
+            throw new Exception(e);
         }
     }
 }

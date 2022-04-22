@@ -137,6 +137,18 @@ message highestRegisterSequenceNumberResponse{
 	bytes hashMessage = 5;
 }
 
+message writeBackRegisterRequest{
+	bytes publicKey = 1;
+	int32 registerSequenceNumber = 2;
+	bytes registerSignature = 3;
+	float balance = 4;
+	int32 sequenceNumber = 5;
+	bytes hashMessage = 6; 	
+} 
+message writeBackRegisterResponse{
+
+}
+
 
 service BFTBanking {
 	rpc Ping(PingRequest) returns (PingResponse);
@@ -147,4 +159,5 @@ service BFTBanking {
 	rpc receiveAmount(receiveAmountRequest) returns (receiveAmountResponse);
 	rpc audit(auditRequest) returns (auditResponse);
 	rpc getHighestRegisterSequenceNumber (highestRegisterSequenceNumberRequest) returns (highestRegisterSequenceNumberResponse);
+	rpc writeBackRegister (writeBackRegisterRequest) returns (writeBackRegisterResponse);
 }

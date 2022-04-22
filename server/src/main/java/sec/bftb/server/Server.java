@@ -464,4 +464,45 @@ public class Server {
             throw new GeneralSecurityException(e); 
         }
     }
+
+
+    public writeBackRegisterResponse writeBackRegister(ByteString publicKey, int registerSequenceNumber, ByteString registerSignature, float balance, int messageSequenceNumber, ByteString hashMessage) throws Exception{
+        List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
+        int highSeqNumber;
+        if(values != null && values.contains(messageSequenceNumber))
+            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
+
+        try{
+
+            ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKey.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(registerSequenceNumber).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(registerSignature.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balance).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(messageSequenceNumber).getBytes());
+            
+            String hashMessageString = CryptographicFunctions.decrypt(publicKey.toByteArray(), hashMessage.toByteArray());
+
+            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
+                throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
+
+            
+            if(registerSequenceNumber > this.serverRepo.getVersionNumber(Base64.getEncoder().encodeToString(publicKey.toByteArray()))){
+                this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(publicKey.toByteArray()), balance);
+                this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(publicKey.toByteArray()), registerSequenceNumber);
+                this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(publicKey.toByteArray()), registerSignature.toByteArray());
+            }
+
+            writeBackRegisterResponse response = writeBackRegisterResponse.newBuilder().build();
+            return response;
+        }  
+        catch(Exception e){
+            logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
+            throw new Exception(e); 
+        }
+    }
 }

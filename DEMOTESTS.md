@@ -94,27 +94,46 @@ audit [receiver_id]
 ```
 
 ### 1 BYZANTINE SERVER TEST
-Assuming the rule 3f+1 servers to tolerate f byzantine server, first you have to start 4 servers with one of them being byzantine
+Assuming the rule 3f+1 servers to tolerate f byzantine server, first you have to start 4 servers with one of them being byzantine.
+Each one of this commands should be run in a different process at the server directory.
 ```shell
-//how to start 4 servers, 1 of them being byzantine
+mvn exec:java -Dexec.args="8090 8090 1 0 0"
+mvn exec:java -Dexec.args="8090 8091 1 0 0"
+mvn exec:java -Dexec.args="8090 8092 1 0 0"
+mvn exec:java -Dexec.args="8090 8093 1 1 0"
 ```
+Now, you can use any one of the tests above. we suggest you use the NORMAL RUN TEST
 
 ### MANY BYZANTINE SERVERS
-For this, you can start 3 servers, 2 of them being byzantine
+For this, you can start 4 servers, 2 of them being byzantine.
+Each one of this commands should be run in a different process at the server directory.
 ```shell
-//how to start 3 servers, 2 of them being byzantine
+mvn exec:java -Dexec.args="8090 8090 1 0 0"
+mvn exec:java -Dexec.args="8090 8091 1 0 0"
+mvn exec:java -Dexec.args="8090 8092 1 1 0"
+mvn exec:java -Dexec.args="8090 8093 1 1 0"
 ```
+Now, you can use any one of the tests above. we suggest you use the NORMAL RUN TEST
 
 ### BYZANTINE CLIENT
-Start a client as usual, create an account and perform any command that i, for example you can perform an audit command.
+Start a client as usual, create an account and perform any command that writes in the system, for example you can perform an send amount command.
 ```shell
-audit [userID]
+send [password_sender] [sender_id] [receiver_id] 5
+```
+Check if the changes were saved
+```shell
+check [password_sender] [sender_id]
 ```
 Then, use the following command to transform the client in a byzantine client
 ```shell
-//byzantine
+byzantine
 ```
 Then, perform the same command
 ```shell
-audit [userID]
+send [password_sender] [sender_id] [receiver_id] 5
+```
+Notice how the servers refuse to execute the client's command.
+Perform an audit command to see how nothing has changed.
+```shell
+audit [sender_id]
 ```

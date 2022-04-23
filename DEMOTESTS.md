@@ -87,3 +87,29 @@ Try to receive the movement again
 ```shell
 receive [password_receiver] [receiver_id] [movement_id]
 ```
+
+### 1 BYZANTINE SERVER TEST
+Assuming the rule 3f+1 servers to tolerate 1 byzantine server, first you have to start 4 servers
+```shell
+//how to start 4 servers, 1 of them being byzantine
+```
+
+### MANY BYZANTINE SERVERS
+For this, you can start 3 servers, 2 of them being byzantine
+```shell
+//how to start 3 servers, 2 of them being byzantine
+```
+
+### BYZANTINE CLIENT
+Start a client as usual, create an account and perform any command, for example you can perform an audit command.
+```shell
+audit [password]
+```
+Then, use the following command to transform the client in a byzantine client
+```shell
+//command to transform client in byzantine client
+```
+Then, perform the same command
+```shell
+audit [password]
+```

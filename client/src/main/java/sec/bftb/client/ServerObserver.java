@@ -27,8 +27,6 @@ public class ServerObserver<R> implements StreamObserver<R>{
     }
 
 
-
-
     @Override
     public synchronized void onNext(R r) {
         responses.add(r);
@@ -70,6 +68,5 @@ public class ServerObserver<R> implements StreamObserver<R>{
 
     @Override
     public void onCompleted() {
-        System.out.println("Request completed");
     }
 }

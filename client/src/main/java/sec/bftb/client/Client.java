@@ -34,6 +34,7 @@ public class Client {
     private int numberOfServers;
     private int possibleFailures;
     private int cont;
+    private boolean isByzantine = false;
     private Key privateKey, serverPublicKey;
     private final Logger logger;
     private ServerFrontend frontend;
@@ -52,7 +53,7 @@ public class Client {
     public int generateNonce(int userID){
         int sequenceNumber;
         do{
-            sequenceNumber = new Random().nextInt(10000);
+            sequenceNumber = new Random().nextInt(100000);
         }while(nonces.get(userID) != null && nonces.get(userID).contains(sequenceNumber));
         return sequenceNumber;
     }
@@ -105,6 +106,12 @@ public class Client {
         else if(systemExceptions.size() > possibleFailures){
             throw new Exception("maxCrashFaults");
         }
+    }
+
+
+    public void changeIsByzantine(){
+        System.out.println("Byzantine Flag is now set to " + !isByzantine);
+        isByzantine = !isByzantine;
     }
 
 
@@ -231,7 +238,7 @@ public class Client {
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
                     logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
                 else if(e.getMessage().equals("maxByzantineFaults")){
-                    Thread.sleep(3000);
+                    Thread.sleep(1000);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
                 }
                 else{
@@ -408,7 +415,7 @@ public class Client {
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
                     logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
                 else if(e.getMessage().equals("maxByzantineFaults")){
-                    Thread.sleep(3000);
+                    Thread.sleep(1000);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
                 }
                 else{
@@ -449,6 +456,20 @@ public class Client {
             messageBytes.write(":".getBytes());
             messageBytes.write(destPublicKeyBytes);
             messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(amount).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(transferIDFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(timeStamp).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashMovement.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balanceFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(seqNumberFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashRegister.toByteArray());
+            messageBytes.write(":".getBytes());
             messageBytes.write(Boolean.toString(isValidated).getBytes());
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(sequenceNumber).getBytes());
@@ -469,6 +490,48 @@ public class Client {
         .setRegisterSignature(encryptedHashRegister).setTimeStamp(timeStamp).setSequenceNumber(sequenceNumber)
         .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
 
+        sendAmountRequest request2 = sendAmountRequest.newBuilder().build();
+        if(isByzantine){
+            
+            privateKey = CryptographicFunctions.getClientPrivateKey(password);
+            sourcePublicKeyBytes = CryptographicFunctions.getClientPublicKey(sourceID).getEncoded();
+            destPublicKeyBytes = CryptographicFunctions.getClientPublicKey(destID).getEncoded();
+
+            messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(sourcePublicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(destPublicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(amount * 20).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(transferIDFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(timeStamp).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashMovement.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balanceFinal * 30).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(seqNumberFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashRegister.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(Boolean.toString(isValidated).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            
+            hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
+            encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
+            .encrypt(privateKey, hashMessage.getBytes()));
+            
+            request2 = sendAmountRequest.newBuilder().setPublicKeySender(ByteString.copyFrom(sourcePublicKeyBytes))
+            .setPublicKeyReceiver(ByteString.copyFrom(destPublicKeyBytes)).setAmount(amount * 20).setTransferId(transferIDFinal)
+            .setMovementSignature(encryptedHashMovement).setNewBalance(balanceFinal * 30).setRegisterSequenceNumber(seqNumberFinal)
+            .setRegisterSignature(encryptedHashRegister).setTimeStamp(timeStamp).setSequenceNumber(sequenceNumber)
+            .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
+        }
+
 
         ServerObserver<sendAmountResponse> serverObs2 = new ServerObserver<sendAmountResponse>();
 
@@ -476,7 +539,10 @@ public class Client {
             for(cont = 0; cont < numberOfServers; cont++){
                 target = host + ":" + (basePort + cont);
                 frontend = new ServerFrontend(target);
-                frontend.sendAmount(request, serverObs2);
+                if((isByzantine) && (cont >= numberOfServers/2))
+                    frontend.sendAmount(request2, serverObs2);
+                else
+                    frontend.sendAmount(request, serverObs2);
                 frontends.add(frontend);
             }
             
@@ -634,9 +700,9 @@ public class Client {
                     signatureRegister = balanceAux + ":" + seqNumberAux;
                     if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(),signatureReplyRegister)){
                         byzantineResponsesCont++;
-                        checkAccountResponses.remove(response);          
+                        checkAccountResponses.remove(response);
                     }
-                    if(seqNumberAux > seqNumberFinal){
+                    else if(seqNumberAux > seqNumberFinal){
                             seqNumberFinal = seqNumberAux;
                             balanceFinal = balanceAux;
                             signatureFinal = signatureAux;
@@ -703,7 +769,7 @@ public class Client {
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
                     logger.log("Exception with message: " + e.getMessage());
                 else if(e.getMessage().equals("maxByzantineFaults")){
-                    Thread.sleep(500);
+                    Thread.sleep(1000);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
                 }
                 else{
@@ -869,7 +935,7 @@ public class Client {
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
                     logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
                 else if(e.getMessage().equals("maxByzantineFaults")){
-                    Thread.sleep(3000);
+                    Thread.sleep(1000);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
                 }
                 else{
@@ -905,6 +971,18 @@ public class Client {
             messageBytes = new ByteArrayOutputStream();
             messageBytes.write(publicKeyBytes);
             messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(transferID).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(timeStamp).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashMovement.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balanceFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(seqNumberFinal).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashRegister.toByteArray());
+            messageBytes.write(":".getBytes());
             messageBytes.write(Boolean.toString(isValidated).getBytes());
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(sequenceNumber).getBytes());
@@ -925,6 +1003,45 @@ public class Client {
         .setRegisterSignature(encryptedHashRegister).setSequenceNumber(sequenceNumber)
         .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
 
+        receiveAmountRequest request2 = receiveAmountRequest.newBuilder().build();
+        if(isByzantine){
+            
+            privateKey = CryptographicFunctions.getClientPrivateKey(password);
+            publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
+            
+            long ts = CryptographicFunctions.getTimeStamp();
+
+            messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(publicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(transferID + 20).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(ts).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashMovement.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(balanceFinal * 20).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(seqNumberFinal + 10).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(encryptedHashRegister.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(Boolean.toString(isValidated).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            
+            hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
+            encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
+            .encrypt(privateKey, hashMessage.getBytes()));
+            
+            request2 = receiveAmountRequest.newBuilder().setPublicKeyClient(ByteString.copyFrom(publicKeyBytes))
+            .setMovementId(transferID + 20).setMovementSignature(encryptedHashMovement)
+            .setTimeStamp(ts).setNewBalance(balanceFinal * 20).setRegisterSequenceNumber(seqNumberFinal + 10)
+            .setRegisterSignature(encryptedHashRegister).setSequenceNumber(sequenceNumber)
+            .setHashMessage(encryptedHashMessage).setIsValidated(isValidated).build();   
+        }
+
 
         ServerObserver<receiveAmountResponse> serverObs2 = new ServerObserver<receiveAmountResponse>();
 
@@ -932,7 +1049,10 @@ public class Client {
             for(cont = 0; cont < numberOfServers; cont++){
                 target = host + ":" + (basePort + cont);
                 frontend = new ServerFrontend(target);
-                frontend.receiveAmount(request, serverObs2);
+                if((isByzantine) && (cont >= numberOfServers/2))
+                    frontend.receiveAmount(request2, serverObs2);
+                else
+                    frontend.receiveAmount(request, serverObs2);
                 frontends.add(frontend);
             }
             
@@ -1137,7 +1257,7 @@ public class Client {
                 if(!e.getMessage().equals("maxByzantineFaults") && !e.getMessage().equals("maxCrashFaults"))
                     logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
                 else if(e.getMessage().equals("maxByzantineFaults")){
-                    Thread.sleep(3000);
+                    Thread.sleep(1000);
                     logger.log("More than " + possibleFailures + " server(s) gave malicious/non-malicious byzantine responses. Please repeat the request...");
                 }
                 else{
@@ -1313,6 +1433,32 @@ public class Client {
             .setBalance(balance).setRegisterSequenceNumber(registerSequenceNumber).setRegisterSignature(registerSignature)
             .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
 
+            
+            writeBackRegisterRequest request2 = writeBackRegisterRequest.newBuilder().build();
+            if(isByzantine){
+                messageBytes = new ByteArrayOutputStream();
+                messageBytes.write(publicKeyBytes);
+                messageBytes.write(":".getBytes());
+                messageBytes.write(String.valueOf(registerSequenceNumber + 20).getBytes());
+                messageBytes.write(":".getBytes());
+                messageBytes.write(registerSignature.toByteArray());
+                messageBytes.write(":".getBytes());
+                messageBytes.write(String.valueOf(balance + 70).getBytes());
+                messageBytes.write(":".getBytes());
+                messageBytes.write(String.valueOf(sequenceNumber).getBytes());
+            
+            
+                hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
+                encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
+                .encrypt(privateKey, hashMessage.getBytes()));
+                
+                
+                request2 = writeBackRegisterRequest.newBuilder().setPublicKey(ByteString.copyFrom(publicKeyBytes))
+                .setBalance(balance + 70).setRegisterSequenceNumber(registerSequenceNumber + 20).setRegisterSignature(registerSignature)
+                .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
+            }
+
+
 
             ServerObserver<writeBackRegisterResponse> serverObs = new ServerObserver<writeBackRegisterResponse>();
 
@@ -1320,7 +1466,10 @@ public class Client {
                 for(cont = 0; cont < numberOfServers; cont++){
                     target = host + ":" + (basePort + cont);
                     frontend = new ServerFrontend(target);
-                    frontend.writeBackRegister(request, serverObs);
+                    if((isByzantine) && (cont >= numberOfServers/2))
+                        frontend.writeBackRegister(request2, serverObs);
+                    else
+                        frontend.writeBackRegister(request, serverObs);
                     frontends.add(frontend);
                 }
                 

@@ -120,6 +120,26 @@ public class ServerRepo {
         }
     }
 
+    public int getTransferId(int id) throws SQLException {
+        try {
+            String query = "SELECT transferStatus FROM movement WHERE movementId=?";
+            connection = this.newConnection();
+            statement = connection.prepareStatement(query);
+            statement.setInt(1, id);
+
+            resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return id;             
+            }
+            else{
+                return -1;
+            }
+        } finally{
+            //closeConnection();
+        }
+    }
+
+
     public String getTransferStatus(int id) throws SQLException {
         try {
             String query = "SELECT transferStatus FROM movement WHERE movementId=?";

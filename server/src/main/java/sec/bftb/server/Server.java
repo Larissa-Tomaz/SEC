@@ -169,7 +169,10 @@ public class Server {
             String hashReply = CryptographicFunctions.hashString(new String(replyBytes.toByteArray()));
             ByteString encryptedHashReply = ByteString.copyFrom(CryptographicFunctions
             .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
-        
+
+            if(isByzantine){
+                balanceUpdated = balanceUpdated + 1000;
+            }
         
             List<Integer> nonce = new ArrayList<>(sequenceNumber);
             nonces.put(new String(sourcePublicKey.toByteArray()), nonce);
@@ -201,14 +204,31 @@ public class Server {
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
 
         try{
+
             ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes = new ByteArrayOutputStream();
             messageBytes.write(sourcePublicKey);
             messageBytes.write(":".getBytes());
             messageBytes.write(request.getPublicKeyReceiver().toByteArray());
             messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getAmount()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getTransferId()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getTimeStamp()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(request.getMovementSignature().toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getNewBalance()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getRegisterSequenceNumber()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(request.getRegisterSignature().toByteArray());
+            messageBytes.write(":".getBytes());
             messageBytes.write(Boolean.toString(isValidated).getBytes());
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(request.getSequenceNumber()).getBytes());
+
             
             String hashMessageString = CryptographicFunctions.decrypt(sourcePublicKey, request.getHashMessage().toByteArray());
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
@@ -247,6 +267,11 @@ public class Server {
             byte[] registerSignature = this.serverRepo.getSignature(clientPublicKeyString);
            
             List<Movement> movements = this.serverRepo.getPendingMovements(clientPublicKeyString);
+
+            if(isByzantine){
+                balance = balance + 33;
+                registerSequenceNumber = registerSequenceNumber + 10;
+            }
 
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(movements.toString().getBytes());
@@ -312,6 +337,11 @@ public class Server {
             registerSequenceNumber = this.serverRepo.getVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             registerSignature = this.serverRepo.getSignature(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
 
+            
+            if(this.serverRepo.getTransferId(transferID) == -1){
+                throw new ServerException(ErrorMessage.NO_SUCH_TRANSFER);
+            }
+
             String destinationUser = this.serverRepo.getDestinationUser(transferID);
             if(!destinationUser.equals(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()))){
                 throw new ServerException(ErrorMessage.INVALID_RECEIVER);
@@ -330,6 +360,10 @@ public class Server {
             //int flag = this.serverRepo.receiveAmount(transferID, "APPROVED", receiverBalance);
             //if(flag == -1)
               //  throw new ServerException(ErrorMessage.NO_SUCH_TRANSFER);
+
+            if(isByzantine){
+                sequenceNumber = sequenceNumber + 5;
+            }
             
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(String.valueOf(mov).getBytes()); 
@@ -371,12 +405,34 @@ public class Server {
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
 
         try{
+            
             ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes = new ByteArrayOutputStream();
             messageBytes.write(clientPublicKey);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getMovementId()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getTimeStamp()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(request.getMovementSignature().toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getNewBalance()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getRegisterSequenceNumber()).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(request.getRegisterSignature().toByteArray());
             messageBytes.write(":".getBytes());
             messageBytes.write(Boolean.toString(isValidated).getBytes());
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(request.getSequenceNumber()).getBytes());
+            
+            
+            /*ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
+            messageBytes.write(clientPublicKey);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(Boolean.toString(isValidated).getBytes());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(String.valueOf(request.getSequenceNumber()).getBytes());*/
             
             String hashMessageString = CryptographicFunctions.decrypt(clientPublicKey, request.getHashMessage().toByteArray());
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
@@ -412,6 +468,17 @@ public class Server {
             List<Movement> movements = this.serverRepo.getCompletedMovements(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             List<Movement> pendingMovements = this.serverRepo.getPendingMovements(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             movements.addAll(pendingMovements);
+
+            if(isByzantine){
+                if(movements.size() > 0){
+                    Movement aux = movements.get(0);
+                    Movement byzantineMov = Movement.newBuilder().setMovementID(aux.getMovementID())
+                    .setMovementSignature(aux.getMovementSignature()).setTimeStamp(CryptographicFunctions.getTimeStamp())
+                    .setSignatureKey(aux.getSignatureKey()).setAmount(33).setStatus("APPROVED").build();
+                    movements.set(0,byzantineMov);
+                }
+            }
+
            
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(movements.toString().getBytes());

@@ -87,6 +87,12 @@ public class ClientMain {
 							else
 								System.out.printf("Audit command must have exactly 2 arguments: Password UserID.%n");
 							break;
+						case "byzantine":
+							if(command.length == 1)
+								user.changeIsByzantine();
+							else
+								System.out.printf("Change Byzantine Flag command must have exactly 0 arguments.%n");
+							break;
 						
 						case "help":
 							System.out.printf("Avaliable operations:\n");
@@ -95,6 +101,7 @@ public class ClientMain {
 							System.out.printf(" - check (1) (2)-> check balance and pending movements of account (2) \n");
 							System.out.printf(" - receive (1) (2) (3) -> approve movement (3) with account (2)  \n");
 							System.out.printf(" - audit (1) (2) -> check balance and all movements of account (2) \n");
+							System.out.printf(" - byzantine -> change byzantine flag of client (initially = false) \n");
 							System.out.printf(" - exit\n");
 							break;
 						case "exit":

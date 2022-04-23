@@ -70,10 +70,10 @@ public class ClientMain {
 								System.out.printf("Send command must have exactly 4 arguments: Password senderUserID receiverUserID AmoutOfTransfer.%n");
 							break;
 						case "check":
-							if(command.length == 3)
-								user.check(command[1], Integer.parseInt(command[2]));
+							if(command.length == 4)
+								user.check(command[1], Integer.parseInt(command[2]), Integer.parseInt(command[3]));
 							else 
-								System.out.printf("Check command must have exactly 2 arguments: Password UserID.%n");
+								System.out.printf("Check command must have exactly 2 arguments: Password UserID UserID_of_Account_to_Check.%n");
 							break;
 						case "receive":
 							if(command.length == 4)
@@ -82,10 +82,10 @@ public class ClientMain {
 								System.out.printf("Receive command must have exactly 3 arguments: Password UserID TransferId.%n");
 							break;
 						case "audit":
-							if(command.length == 3)
-								user.audit(command[1], Integer.parseInt(command[2]));
+							if(command.length == 2)
+								user.audit(Integer.parseInt(command[1]));
 							else
-								System.out.printf("Audit command must have exactly 2 arguments: Password UserID.%n");
+								System.out.printf("Audit command must have exactly 1 argument: UserID.%n");
 							break;
 						case "byzantine":
 							if(command.length == 1)
@@ -98,9 +98,9 @@ public class ClientMain {
 							System.out.printf("Avaliable operations:\n");
 							System.out.printf(" - open (1) -> open account \n");
 							System.out.printf(" - send (1) (2) (3) (4) -> send (4) to user (3) from user (2) \n");
-							System.out.printf(" - check (1) (2)-> check balance and pending movements of account (2) \n");
+							System.out.printf(" - check (1) (2) (3)-> check balance and pending movements of account (3) using keys associated with account(2)\n");
 							System.out.printf(" - receive (1) (2) (3) -> approve movement (3) with account (2)  \n");
-							System.out.printf(" - audit (1) (2) -> check balance and all movements of account (2) \n");
+							System.out.printf(" - audit (1) -> check balance and all movements of account (1) \n");
 							System.out.printf(" - byzantine -> change byzantine flag of client (initially = false) \n");
 							System.out.printf(" - exit\n");
 							break;

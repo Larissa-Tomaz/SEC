@@ -606,7 +606,7 @@ public class Client {
 
 
 
-    public void check(String password, int userID) throws Exception{
+    public void check(String password, int localUserID, int userID) throws Exception{
         
         ByteArrayOutputStream messageBytes;
         String hashMessage;
@@ -770,7 +770,7 @@ public class Client {
                 else
                     nonces.get(userID).add(sequenceNumber);
 
-                writeBackRegister(userID, password, publicKeyBytes, balanceFinal, seqNumberFinal, signatureFinal);
+                writeBackRegister(userID, password, localUserID, balanceFinal, seqNumberFinal, signatureFinal);
 
                 
                 if(checkAccountResponses.get(i).getPendingMovementsList().size() == 0)
@@ -1122,7 +1122,7 @@ public class Client {
     //----------------------------Audit-----------------------------
 
 
-    public void audit(String password, int userID) throws Exception{
+    public void audit(int userID) throws Exception{
         
         ByteArrayOutputStream messageBytes;
         String hashMessage;
@@ -1142,7 +1142,6 @@ public class Client {
 
         sequenceNumber = generateNonce(userID);
         try{
-            privateKey = CryptographicFunctions.getClientPrivateKey(password);
             publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
         }
         catch (Exception e){
@@ -1291,8 +1290,9 @@ public class Client {
 
     //---------------------------------------------------------WriteBack------------------------------------------------
 
-    public void writeBackRegister(int userID, String password, byte[] publicKeyBytes, float balance, int registerSequenceNumber, ByteString registerSignature) throws Exception{
+    public void writeBackRegister(int userID, String password, int localUserID, float balance, int registerSequenceNumber, ByteString registerSignature) throws Exception{
 
+        byte[] clientPublicKeyBytes, publicKeyBytes;
         ByteArrayOutputStream messageBytes;
         ArrayList<ServerFrontend> frontends = new ArrayList<>();
         int sequenceNumber = generateNonce(userID);
@@ -1300,10 +1300,13 @@ public class Client {
         
         try{
             privateKey = CryptographicFunctions.getClientPrivateKey(password);
-            publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
+            clientPublicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
+            publicKeyBytes = CryptographicFunctions.getClientPublicKey(localUserID).getEncoded();
             
             messageBytes = new ByteArrayOutputStream();
             messageBytes.write(publicKeyBytes);
+            messageBytes.write(":".getBytes());
+            messageBytes.write(clientPublicKeyBytes);
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(registerSequenceNumber).getBytes());
             messageBytes.write(":".getBytes());
@@ -1320,14 +1323,16 @@ public class Client {
             
             
             writeBackRegisterRequest request = writeBackRegisterRequest.newBuilder().setPublicKey(ByteString.copyFrom(publicKeyBytes))
-            .setBalance(balance).setRegisterSequenceNumber(registerSequenceNumber).setRegisterSignature(registerSignature)
-            .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
+            .setPublicKeyClient(ByteString.copyFrom(clientPublicKeyBytes)).setBalance(balance).setRegisterSequenceNumber(registerSequenceNumber)
+            .setRegisterSignature(registerSignature).setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
 
             
             writeBackRegisterRequest request2 = writeBackRegisterRequest.newBuilder().build();
             if(isByzantine){
                 messageBytes = new ByteArrayOutputStream();
                 messageBytes.write(publicKeyBytes);
+                messageBytes.write(":".getBytes());
+                messageBytes.write(clientPublicKeyBytes);
                 messageBytes.write(":".getBytes());
                 messageBytes.write(String.valueOf(registerSequenceNumber + 20).getBytes());
                 messageBytes.write(":".getBytes());
@@ -1344,7 +1349,8 @@ public class Client {
                 
                 
                 request2 = writeBackRegisterRequest.newBuilder().setPublicKey(ByteString.copyFrom(publicKeyBytes))
-                .setBalance(balance + 70).setRegisterSequenceNumber(registerSequenceNumber + 20).setRegisterSignature(registerSignature)
+                .setPublicKeyClient(ByteString.copyFrom(clientPublicKeyBytes)).setBalance(balance + 70)
+                .setRegisterSequenceNumber(registerSequenceNumber + 20).setRegisterSignature(registerSignature)
                 .setSequenceNumber(sequenceNumber).setHashMessage(encryptedHashMessage).build();   
             }
 

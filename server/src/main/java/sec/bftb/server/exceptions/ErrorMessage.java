@@ -14,7 +14,8 @@ public enum ErrorMessage {
     INVALID_RECEIVER("User is not the right receiver of the transfer"),
     BYZANTINE_CLIENT_OR_MAX_SERVER_FAILURES("Byzantine client sent more than F different requests or more than F servers are unresponsive"),
     INVALID_KEY_PAIR("Invalid key pair"),
-    FAILED_DB_CONNECTION("Failed to establish connection to database");
+    FAILED_DB_CONNECTION("Failed to establish connection to database"),
+    FAILED_TO_CLEAN_DB("Failed to clean database");
 
     
     public final String label;

@@ -481,7 +481,7 @@ public class Server {
         try{
             float balance = this.serverRepo.getBalance(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             if (balance == -1)
-                throw new ServerException(ErrorMessage.USER_ALREADY_EXISTS);
+                throw new ServerException(ErrorMessage.NO_SUCH_USER);
 
             List<Movement> movements = this.serverRepo.getCompletedMovements(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             List<Movement> pendingMovements = this.serverRepo.getPendingMovements(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
@@ -519,7 +519,7 @@ public class Server {
 
 
 
-    public writeBackRegisterResponse writeBackRegister(ByteString publicKey, int registerSequenceNumber, ByteString registerSignature, float balance, int messageSequenceNumber, ByteString hashMessage) throws Exception{
+    public writeBackRegisterResponse writeBackRegister(ByteString publicKey, ByteString clientPublicKey,int registerSequenceNumber, ByteString registerSignature, float balance, int messageSequenceNumber, ByteString hashMessage) throws Exception{
         
         int highSeqNumber;
         List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
@@ -530,6 +530,8 @@ public class Server {
 
             ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
             messageBytes.write(publicKey.toByteArray());
+            messageBytes.write(":".getBytes());
+            messageBytes.write(clientPublicKey.toByteArray());
             messageBytes.write(":".getBytes());
             messageBytes.write(String.valueOf(registerSequenceNumber).getBytes());
             messageBytes.write(":".getBytes());
@@ -546,10 +548,10 @@ public class Server {
 
             doubleEcho(CryptographicFunctions.hashString(new String(messageBytes.toByteArray())));
             
-            if(registerSequenceNumber > this.serverRepo.getVersionNumber(Base64.getEncoder().encodeToString(publicKey.toByteArray()))){
-                this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(publicKey.toByteArray()), balance);
-                this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(publicKey.toByteArray()), registerSequenceNumber);
-                this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(publicKey.toByteArray()), registerSignature.toByteArray());
+            if(registerSequenceNumber > this.serverRepo.getVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()))){
+                this.serverRepo.updateBalance(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()), balance);
+                this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()), registerSequenceNumber);
+                this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()), registerSignature.toByteArray());
             }
 
             

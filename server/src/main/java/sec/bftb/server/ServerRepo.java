@@ -28,10 +28,6 @@ public class ServerRepo {
 
     private final Logger logger;
     private Properties props;
-    /*private final String dbUrl;
-    private final String dbUsername;
-    private final String dbPassword;
-    private final String dbDir;*/
 
     private Connection connection = null;
     private PreparedStatement statement = null;
@@ -50,7 +46,7 @@ public class ServerRepo {
 
             //Create server database if it does not exist
             try (Connection connection = DriverManager.getConnection(prop.getProperty("url"), prop);
-                 Statement stmt = connection.createStatement()) {
+                Statement stmt = connection.createStatement()) {
                 stmt.execute("CREATE DATABASE bftb_db" + serverId);
                 logger.log("Database created!");
 
@@ -73,37 +69,15 @@ public class ServerRepo {
         }
         prop.setProperty("url", databaseUrl);
         this.props = prop;
+
+        if(clearDB){
+            clearDatabase();
+        }
     }
 
     private Connection newConnection() throws SQLException {
         return DriverManager.getConnection(this.props.getProperty("url"), this.props);
     }
-
-    /*private void closeConnection(){
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) { 
-                this.logger.log(e.getMessage());
-            }
-        }
-
-        if (statement != null) {
-            try {
-                statement.close();
-            } catch (SQLException e) {
-                this.logger.log(e.getMessage());
-            }
-        }
-
-        if (resultSet != null) {
-            try {
-                resultSet.close();
-            } catch (SQLException e) {
-                this.logger.log(e.getMessage());
-            }
-        }
-    }*/
 
     public void openAccount(String pubKey, Float balance, byte[] signatureRegister) throws SQLException {
         try {
@@ -116,7 +90,9 @@ public class ServerRepo {
             statement.setBytes(4, signatureRegister);
             statement.executeUpdate();
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -135,7 +111,9 @@ public class ServerRepo {
                 return -1;
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -155,7 +133,9 @@ public class ServerRepo {
                 return "-1";
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -174,7 +154,9 @@ public class ServerRepo {
                 return "-1";
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -207,7 +189,9 @@ public class ServerRepo {
             }
             
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
 
     }
@@ -239,7 +223,9 @@ public class ServerRepo {
             return movements;
 
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -300,7 +286,9 @@ public class ServerRepo {
             return movements;
 
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
     
@@ -320,7 +308,9 @@ public class ServerRepo {
             statement.setString(7, transferStatus);
             statement.executeUpdate();
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -349,7 +339,9 @@ public class ServerRepo {
             return 0;
 
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -368,7 +360,9 @@ public class ServerRepo {
                 return -1; 
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -382,7 +376,9 @@ public class ServerRepo {
             statement.setString(2, pubKey);
             statement.executeUpdate();
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -402,7 +398,9 @@ public class ServerRepo {
                 return -1; 
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -416,7 +414,9 @@ public class ServerRepo {
             statement.setString(2, pubKey);
             statement.executeUpdate();
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -436,7 +436,9 @@ public class ServerRepo {
                 return new byte[-1]; 
             }
         } finally{
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -450,7 +452,9 @@ public class ServerRepo {
             statement.setString(2, pubKey);
             statement.executeUpdate();
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
     }
 
@@ -468,7 +472,18 @@ public class ServerRepo {
                 return -1;
     
         } finally {
-            //closeConnection();
+            resultSet.close();
+            statement.close();
+            connection.close();
         }
+    }
+
+    public void clearDatabase() throws ServerException {
+        try (var connection = this.newConnection();
+            var statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM account; DELETE FROM movement;");
+        } catch (SQLException e) {
+            throw new ServerException(ErrorMessage.FAILED_TO_CLEAN_DB);
+        } 
     }
 }

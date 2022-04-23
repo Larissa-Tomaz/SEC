@@ -30,7 +30,6 @@ public class ServerObserver<R> implements StreamObserver<R>{
     @Override
     public synchronized void onNext(R r) {
         responses.add(r);
-        System.out.println("Received " + r.getClass().getSimpleName());  
         this.notifyAll();
         return;
     }
@@ -40,27 +39,12 @@ public class ServerObserver<R> implements StreamObserver<R>{
     public synchronized void onError(Throwable throwable) {
         if(throwable instanceof StatusRuntimeException){
             StatusRuntimeException e = (StatusRuntimeException) throwable;
-            /*if(Status.DEADLINE_EXCEEDED.getCode() == e.getStatus().getCode()){
-                System.out.println("The deadline for this request is already over: " + e.getStatus().getDescription());
-                //this.notifyAll();
-            }   */
 
             if(Status.INVALID_ARGUMENT.getCode() == e.getStatus().getCode()){
                 logicExceptions.add(e);
                 this.notifyAll();
                 return;
-                //System.out.println("The request is wrongly formatted.");
             }
-             /*   
-            else if(Status.CANCELLED.getCode() == e.getStatus().getCode())
-                System.out.println("This request was cancelled.");   
-                
-            else if(Status.UNAVAILABLE.getCode() == e.getStatus().getCode())
-                System.out.println("This channel was forcedly shutdown because the response is no longer needed.");  
-
-            else
-                System.out.println("Error ocurred with description: " + e.getStatus().getDescription());
-            */
         }
         systemExceptions.add((Exception)throwable);
         this.notifyAll();

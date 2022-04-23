@@ -118,8 +118,10 @@ public class ServerServiceImpl extends BFTBankingGrpc.BFTBankingImplBase {
 	@Override
 	public void writeBackRegister(writeBackRegisterRequest request, StreamObserver<writeBackRegisterResponse> responseObserver) {
 		try{
-			writeBackRegisterResponse response = server.writeBackRegister(request.getPublicKey(), request.getRegisterSequenceNumber(),
-				request.getRegisterSignature(), request.getBalance(), request.getSequenceNumber(), request.getHashMessage());
+			writeBackRegisterResponse response = server.writeBackRegister(request.getPublicKey(), request.getPublicKeyClient(),
+			request.getRegisterSequenceNumber(),request.getRegisterSignature(),
+			request.getBalance(), request.getSequenceNumber(), request.getHashMessage());
+			
 			responseObserver.onNext(response);
 			responseObserver.onCompleted();
 		}

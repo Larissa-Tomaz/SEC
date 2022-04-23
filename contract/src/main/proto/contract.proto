@@ -126,14 +126,15 @@ message auditResponse{
 
 message writeBackRegisterRequest{
 	bytes publicKey = 1;
-	int32 registerSequenceNumber = 2;
-	bytes registerSignature = 3;
-	float balance = 4;
-	int32 sequenceNumber = 5;
-	bytes hashMessage = 6; 	
+	bytes publicKeyClient = 2;
+	int32 registerSequenceNumber = 3;
+	bytes registerSignature = 4;
+	float balance = 5;
+	int32 sequenceNumber = 6;
+	bytes hashMessage = 7; 	
 } 
-message writeBackRegisterResponse{
 
+message writeBackRegisterResponse{
 }
 
 message echoRequest{

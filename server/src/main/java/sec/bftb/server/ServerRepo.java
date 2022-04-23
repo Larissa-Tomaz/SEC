@@ -232,7 +232,7 @@ public class ServerRepo {
 
                 Movement mov = Movement.newBuilder().setMovementID(transferId).setTimeStamp(timeStamp)
                 .setMovementSignature(ByteString.copyFrom(signature)).setSignatureKey(ByteString.copyFrom(Base64.getDecoder()
-                .decode(source))).setAmount(amount).setStatus(status).build();
+                .decode(source))).setAmount(amount).setDirectionOfTransfer("Awaiting to receive").setStatus(status).build();
 
                 movements.add(mov);
             }
@@ -247,7 +247,7 @@ public class ServerRepo {
     public List<Movement> getCompletedMovements(String pubKey) throws SQLException{
         try{ 
             String query = "SELECT movementId,amount,timeStampMovement,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE destinationAccount = ? and transferStatus = 'APPROVED'";
-            String query2 = "SELECT movementId,amount,timeStampMovement,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE sourceAccount = ? and transferStatus = 'APPROVED'";
+            String query2 = "SELECT movementId,amount,timeStampMovement,signatureMovement,sourceAccount,destinationAccount,transferStatus FROM movement WHERE sourceAccount = ?";
 
             ArrayList<Movement> movements = new ArrayList<>();
             connection = this.newConnection();
@@ -284,9 +284,15 @@ public class ServerRepo {
                 int transferId = resultSet.getInt("movementId");      
                 float amount = resultSet.getFloat("amount");
 
-                Movement mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setTimeStamp(timeStamp)
-                .setMovementSignature(ByteString.copyFrom(signature)).setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(destination)))
-                .setStatus(status).setDirectionOfTransfer("Sent").build();
+                Movement mov = Movement.newBuilder().build();
+                if(status.equals("APPROVED"))
+                    mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setTimeStamp(timeStamp)
+                    .setMovementSignature(ByteString.copyFrom(signature)).setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(destination)))
+                    .setStatus(status).setDirectionOfTransfer("Sent").build();
+                else
+                    mov = Movement.newBuilder().setMovementID(transferId).setAmount(amount).setTimeStamp(timeStamp)
+                    .setMovementSignature(ByteString.copyFrom(signature)).setSignatureKey(ByteString.copyFrom(Base64.getDecoder().decode(source)))
+                    .setStatus(status).setDirectionOfTransfer("Sent").build();
 
                 movements.add(mov);
             }

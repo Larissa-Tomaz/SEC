@@ -34,6 +34,7 @@ public class Client {
     private int numberOfServers;
     private int possibleFailures;
     private int cont;
+    private int noncesCleaner = 0;
     private boolean isByzantine = false;
     private Key privateKey, serverPublicKey;
     private final Logger logger;
@@ -58,6 +59,13 @@ public class Client {
         return sequenceNumber;
     }
     
+    public void checkNoncesReset(){
+        noncesCleaner++;
+        if(noncesCleaner > 50000)
+            nonces.clear();
+            noncesCleaner = 0;
+    }
+
     public ArrayList<Movement> orderMovementByTimeStamp(List<Movement> movements_original){
         ArrayList<Movement> movements = new ArrayList<Movement>(movements_original);
         
@@ -128,6 +136,8 @@ public class Client {
         ArrayList<ServerFrontend> frontends = new ArrayList<>();
         int localUserID = 0, randPass = 0, i=0, byzantineResponsesCont = 0, targetPort;
 
+        checkNoncesReset();
+        
         int sequenceNumber = new Random().nextInt(10000);
         
         try{
@@ -226,8 +236,11 @@ public class Client {
                     randPass = entry.getValue();
                     break;
                 }
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(localUserID, nonce);
+              
+                if(!nonces.containsKey(localUserID))
+                    nonces.put(localUserID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(localUserID).add(sequenceNumber);
                 System.out.println("Local user id: " + localUserID + ", Local access password: " + randPass + "-" + password);  
                 
                 
@@ -281,6 +294,7 @@ public class Client {
 
         //Preparation of first request which gets the values that will be written in the second request (isValidated = false)
 
+        checkNoncesReset();
         
         timeStamp = CryptographicFunctions.getTimeStamp();
         sequenceNumber = generateNonce(sourceID);
@@ -404,8 +418,10 @@ public class Client {
                         transferIDFinal = transferIDAux;    
                 }
 
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(sourceID, nonce);
+                if(!nonces.containsKey(sourceID))
+                    nonces.put(sourceID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(sourceID).add(sequenceNumber);
 
                 for(ServerFrontend frontend : frontends)
                     frontend.close();
@@ -569,8 +585,10 @@ public class Client {
                 checkExceptionQuantity(sendAmountLogicExceptions2, sendAmountSystemExceptions2);
             }
 
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(sourceID, nonce);
+            if(!nonces.containsKey(sourceID))
+                    nonces.put(sourceID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(sourceID).add(sequenceNumber);
 
             for(ServerFrontend frontend : frontends)
                 frontend.close();
@@ -606,6 +624,8 @@ public class Client {
         int n=0, j = 0, sizeFrequencyAux, sizeFrequencyFinal = -1, mostCommonPosition = -1;
         ByteString signatureAux, signatureFinal = ByteString.copyFrom("INITIALIZED".getBytes());
 
+
+        checkNoncesReset();
 
         try{
             sequenceNumber = generateNonce(userID);
@@ -745,8 +765,10 @@ public class Client {
                     }
                 }        
 
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(userID, nonce);
+                if(!nonces.containsKey(userID))
+                    nonces.put(userID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(userID).add(sequenceNumber);
 
                 writeBackRegister(userID, password, publicKeyBytes, balanceFinal, seqNumberFinal, signatureFinal);
 
@@ -754,10 +776,10 @@ public class Client {
                 if(checkAccountResponses.get(i).getPendingMovementsList().size() == 0)
                     System.out.println("Pending movements: None");
                 else{
-                    System.out.println("Pending movements: ");
+                    System.out.println("Pending Movements: ");
                     ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(checkAccountResponses.get(i).getPendingMovementsList());
                     for(Movement mov : orderedMovements)
-                        System.out.println("Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
+                        System.out.println(" -Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
                 }
                 System.out.println("\nYour current balance: " + balanceFinal);
 
@@ -802,6 +824,8 @@ public class Client {
         Movement movementAux, movementFinal;
 
 
+        checkNoncesReset();
+        
         timeStamp = CryptographicFunctions.getTimeStamp();
         sequenceNumber = generateNonce(userID);
         try{
@@ -924,8 +948,10 @@ public class Client {
                     checkByzantineFaultQuantity(byzantineResponsesCont);
                 }
 
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(userID, nonce);
+                if(!nonces.containsKey(userID))
+                    nonces.put(userID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(userID).add(sequenceNumber);
 
                 for(ServerFrontend frontend : frontends)
                     frontend.close();
@@ -1079,8 +1105,10 @@ public class Client {
                 checkExceptionQuantity(sendAmountLogicExceptions2, sendAmountSystemExceptions2);
             }
 
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(userID, nonce);
+            if(!nonces.containsKey(userID))
+                nonces.put(userID, new ArrayList<>(sequenceNumber));
+            else
+                nonces.get(userID).add(sequenceNumber);
 
             for(ServerFrontend frontend : frontends)
                 frontend.close();
@@ -1109,6 +1137,8 @@ public class Client {
         int sizeFrequencyAux, i = 0, n=0, j = 0, sizeFrequencyFinal = -1, mostCommonPosition = -1,  transferIDFinal = -1;
         //ByteString signatureAux;
 
+
+        checkNoncesReset();
 
         sequenceNumber = generateNonce(userID);
         try{
@@ -1221,30 +1251,18 @@ public class Client {
                     }
                 }        
 
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                nonces.put(userID, nonce);
+                if(!nonces.containsKey(userID))
+                    nonces.put(userID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(userID).add(sequenceNumber);
 
                 if(auditResponses.get(i).getConfirmedMovementsList().size() == 0)
                     System.out.println("Movement History: None");
                 else{
                     ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(auditResponses.get(i).getConfirmedMovementsList());
                     
-                    ArrayList<Movement> confirmedMovements = new ArrayList<Movement>(orderedMovements);
-                    for(Movement mov: orderedMovements){ 
-                        if(mov.getStatus().equals("APPROVED")){
-                            int movementIDAux = mov.getMovementID();
-                            for(i = 0 ; i < orderedMovements.size() - 1 ; i++){
-                                if(movementIDAux > orderedMovements.get(i).getMovementID() && movementIDAux <= orderedMovements.get(i+1).getMovementID()){
-                                    Movement movementAux = Movement.newBuilder().setMovementID(movementIDAux).setAmount(mov.getAmount())
-                                    .setTimeStamp(mov.getTimeStamp()).setStatus("PENDING").build();
-                                    confirmedMovements.add(i+1,movementAux);
-                                }
-                            }
-                        }
-                    }
-                    
                     System.out.println("Movement History:");
-                    for(Movement mov : confirmedMovements){
+                    for(Movement mov : orderedMovements){
                         System.out.println("  -Movement " + mov.getMovementID() + ":");
                         System.out.println("    < Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
                     }
@@ -1271,135 +1289,7 @@ public class Client {
         }
     }
 
-
-    //----------------------------Get Highest Register SequenceNumber-----------------------------
-    
-    
-    public int getHighestRegSeqNumber(String password, int userID) throws Exception{
-        
-        ByteArrayOutputStream messageBytes;
-        String hashMessage;
-        int sequenceNumber;
-        int byzantineResponsesCont = 0, i = 0;
-        ByteString encryptedHashMessage;
-        byte[] publicKeyBytes;
-        Key privateKey;
-        ArrayList<ServerFrontend> frontends = new ArrayList<>();
-
-        String signatureReplyRegister, signatureRegister, movementString;
-        int seqNumberAux, seqNumberFinal = -1;
-        float balanceAux;
-        ByteString signatureAux;
-
-        
-        sequenceNumber = generateNonce(userID);
-        
-        privateKey = CryptographicFunctions.getClientPrivateKey(password);
-        publicKeyBytes = CryptographicFunctions.getClientPublicKey(userID).getEncoded();
-    
-        messageBytes = new ByteArrayOutputStream();
-        messageBytes.write(publicKeyBytes);
-        messageBytes.write(":".getBytes());
-        messageBytes.write(String.valueOf(sequenceNumber).getBytes());
-        
-        hashMessage = CryptographicFunctions.hashString(new String(messageBytes.toByteArray()));
-        encryptedHashMessage = ByteString.copyFrom(CryptographicFunctions
-        .encrypt(privateKey, hashMessage.getBytes()));
-    
-        
-        
-
-        highestRegisterSequenceNumberRequest request = highestRegisterSequenceNumberRequest.newBuilder()
-        .setPublicKeyClient(ByteString.copyFrom(publicKeyBytes)).setSequenceNumber(sequenceNumber).build();   
-
-
-
-        ServerObserver<highestRegisterSequenceNumberResponse> serverObs = new ServerObserver<highestRegisterSequenceNumberResponse>();
-
-        synchronized(serverObs){
-            for(cont = 0; cont < numberOfServers; cont++){  //Send all requests
-                target = host + ":" + (basePort + cont);
-                frontend = new ServerFrontend(target);
-                frontend.getHighestRegisterSequenceNumber(request,serverObs);
-                frontends.add(frontend);
-            }
-            
-            System.out.println("Sent all requests.");
-            do {
-                try{
-                    serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
-                }catch (InterruptedException e) {
-                    System.out.println("Wait interrupted");
-                    throw e;
-                }
-            }
-            while(serverObs.getResponseCollector().size() < byzantineQuorum && 
-            serverObs.getLogicExceptionCollector().size() < byzantineQuorum && 
-            serverObs.getSystemExceptionCollector().size() <= possibleFailures); 
-            
-            ArrayList<highestRegisterSequenceNumberResponse> highestRegisterSequenceNumberResponses = serverObs.getResponseCollector(); 
-            ArrayList<StatusRuntimeException> highestRegisterSequenceNumberLogicExceptions = serverObs.getLogicExceptionCollector();
-            ArrayList<Exception> highestRegisterSequenceNumberSystemExceptions = serverObs.getSystemExceptionCollector();
-            
-            if(highestRegisterSequenceNumberLogicExceptions.size() >= byzantineQuorum || highestRegisterSequenceNumberSystemExceptions.size() > possibleFailures){
-                checkExceptionQuantity(highestRegisterSequenceNumberLogicExceptions, highestRegisterSequenceNumberSystemExceptions);
-            }
-            
-
-            
-            for(highestRegisterSequenceNumberResponse response: highestRegisterSequenceNumberResponses){ //Remove altered (message integrity compromissed) or duplicated (replay attacks) replies
-                
-                checkByzantineFaultQuantity(byzantineResponsesCont);
-                
-                System.out.println(response);
-                if(response.getSequenceNumber() != sequenceNumber + 1){
-                    logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
-                    highestRegisterSequenceNumberResponses.remove(response);
-                    byzantineResponsesCont++;
-                    continue;
-                }
-
-                messageBytes = new ByteArrayOutputStream();
-                messageBytes.write(String.valueOf(response.getSequenceNumber()).getBytes());
-                
-                serverPublicKey = CryptographicFunctions.getServerPublicKey("../crypto/");
-                String hashMessageString = CryptographicFunctions.decrypt(serverPublicKey.getEncoded(), response.getHashMessage().toByteArray()); 
-                if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString)){
-                    logger.log("One of the replica's reply message had its integrity compromissed.");
-                    highestRegisterSequenceNumberResponses.remove(response);
-                    byzantineResponsesCont++;          
-                }
-            }
-            
-
-            for(highestRegisterSequenceNumberResponse response : highestRegisterSequenceNumberResponses){ //Obtain highest valid seq number
-                seqNumberAux = response.getRegisterSequenceNumber(); 
-                signatureAux = response.getRegisterSignature(); 
-                balanceAux = response.getBalance();
-                signatureReplyRegister = CryptographicFunctions.decrypt(publicKeyBytes, signatureAux.toByteArray()); 
-                
-                signatureRegister = balanceAux + ":" + seqNumberAux;
-                if(!CryptographicFunctions.verifyMessageHash(signatureRegister.getBytes(), signatureReplyRegister)){
-                    byzantineResponsesCont++;
-                    highestRegisterSequenceNumberResponses.remove(response);          
-                }
-                else if(seqNumberAux > seqNumberFinal){
-                        seqNumberFinal = seqNumberAux;
-                }
-                checkByzantineFaultQuantity(byzantineResponsesCont);
-            }
-
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(userID, nonce);
-            for(ServerFrontend frontend : frontends)
-                frontend.close();
-
-            return seqNumberFinal;
-        }
-    }
+    //---------------------------------------------------------WriteBack------------------------------------------------
 
     public void writeBackRegister(int userID, String password, byte[] publicKeyBytes, float balance, int registerSequenceNumber, ByteString registerSignature) throws Exception{
 
@@ -1496,8 +1386,10 @@ public class Client {
                     checkExceptionQuantity(writeBackRegisterLogicExceptions, writeBackRegisterSystemExceptions);
                 }
 
-                List<Integer> nonce = new ArrayList<>(sequenceNumber);
-                    nonces.put(userID, nonce);
+                if(!nonces.containsKey(userID))
+                    nonces.put(userID, new ArrayList<>(sequenceNumber));
+                else
+                    nonces.get(userID).add(sequenceNumber);
 
                 for(ServerFrontend frontend : frontends)
                     frontend.close();

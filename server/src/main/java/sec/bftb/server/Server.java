@@ -33,6 +33,7 @@ public class Server {
 	public final ServerRepo serverRepo;
     private final Logger logger;
     private final int serverPort, basePort;
+    private int noncesCleaner = 0;
     private final int maxByzantineFaults, numberOfServers, byzantineQuorum;
     private final boolean isByzantine;
 
@@ -57,8 +58,17 @@ public class Server {
 		return "I'm alive!";
 	}
 
+    public void checkNoncesReset(){
+        noncesCleaner++;
+        if(noncesCleaner > 2500)
+            nonces.clear();
+            noncesCleaner = 0;
+    }
+
     public openAccountResponse open_account(ByteString clientPublicKey, ByteString registerSignature,int sequenceNumber, ByteString hashMessage) throws Exception{
         
+        checkNoncesReset();
+
         List <Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
         if(values != null && values.contains(sequenceNumber))
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
@@ -93,8 +103,11 @@ public class Server {
             .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
         
         
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(clientPublicKey.toByteArray()), nonce);
+            if(!nonces.containsKey(new String(clientPublicKey.toByteArray())))
+                nonces.put(new String(clientPublicKey.toByteArray()), new ArrayList<>(sequenceNumber));
+            else
+                nonces.get(new String(clientPublicKey.toByteArray())).add(sequenceNumber);
+            
 
             openAccountResponse response = openAccountResponse.newBuilder()
                         .setBalance(INITIAL_BALANCE).setSequenceNumber(sequenceNumber + 1)
@@ -116,6 +129,8 @@ public class Server {
         int registerSequenceNumber;
         byte[] registerSignature;
 
+        checkNoncesReset();
+        
         List <Integer> values = nonces.get(new String(sourcePublicKey.toByteArray()));
         if(values != null && values.contains(sequenceNumber))
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
@@ -174,8 +189,11 @@ public class Server {
                 balanceUpdated = balanceUpdated + 1000;
             }
         
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(sourcePublicKey.toByteArray()), nonce);
+            if(!nonces.containsKey(new String(sourcePublicKey.toByteArray())))
+                nonces.put(new String(sourcePublicKey.toByteArray()), new ArrayList<>(sequenceNumber));
+            else
+                nonces.get(new String(sourcePublicKey.toByteArray())).add(sequenceNumber);
+
 
             sendAmountResponse response = sendAmountResponse.newBuilder().setTransferId(nextId).setNewBalance(balanceUpdated).setOldBalance(balance)
             .setRegisterSequenceNumber(registerSequenceNumber).setRegisterSignature(ByteString.copyFrom(registerSignature))
@@ -244,6 +262,10 @@ public class Server {
                 Base64.getEncoder().encodeToString(request.getPublicKeyReceiver().toByteArray()),
                 request.getAmount(), request.getTransferId(), "PENDING", request.getTimeStamp(),request.getMovementSignature().toByteArray()); 
 
+            if(!nonces.containsKey(new String(sourcePublicKey)))
+                nonces.put(new String(sourcePublicKey), new ArrayList<>(request.getSequenceNumber()));
+            else
+                nonces.get(new String(sourcePublicKey)).add(request.getSequenceNumber());
 
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
@@ -284,9 +306,6 @@ public class Server {
             ByteString encryptedHashReply = ByteString.copyFrom(CryptographicFunctions
             .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
         
-        
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(clientPublicKey.toByteArray()), nonce);
 
             checkAccountResponse response = checkAccountResponse.newBuilder().addAllPendingMovements(movements)
                         .setBalance(balance).setRegisterSignature(ByteString.copyFrom(registerSignature))
@@ -309,6 +328,8 @@ public class Server {
         float balanceUpdated;
         byte[] registerSignature;
 
+        checkNoncesReset();
+        
         List<Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
         if(values != null && values.contains(sequenceNumber))
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
@@ -361,9 +382,6 @@ public class Server {
             //if(flag == -1)
               //  throw new ServerException(ErrorMessage.NO_SUCH_TRANSFER);
 
-            if(isByzantine){
-                sequenceNumber = sequenceNumber + 5;
-            }
             
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(String.valueOf(mov).getBytes()); 
@@ -377,8 +395,15 @@ public class Server {
             .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
         
     
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(clientPublicKey.toByteArray()), nonce);
+            if(!nonces.containsKey(new String(clientPublicKey.toByteArray())))
+                nonces.put(new String(clientPublicKey.toByteArray()), new ArrayList<>(sequenceNumber));
+            else
+                nonces.get(new String(clientPublicKey.toByteArray())).add(sequenceNumber);
+
+            if(isByzantine){
+                sequenceNumber = sequenceNumber + 5;
+            }
+            
 
             receiveAmountResponse response = receiveAmountResponse.newBuilder().setMovement(mov).setNewBalance(balanceUpdated)
             .setOldBalance(receiverBalance).setRegisterSequenceNumber(registerSequenceNumber)
@@ -427,13 +452,6 @@ public class Server {
             messageBytes.write(String.valueOf(request.getSequenceNumber()).getBytes());
             
             
-            /*ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
-            messageBytes.write(clientPublicKey);
-            messageBytes.write(":".getBytes());
-            messageBytes.write(Boolean.toString(isValidated).getBytes());
-            messageBytes.write(":".getBytes());
-            messageBytes.write(String.valueOf(request.getSequenceNumber()).getBytes());*/
-            
             String hashMessageString = CryptographicFunctions.decrypt(clientPublicKey, request.getHashMessage().toByteArray());
             if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
                 throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
@@ -444,6 +462,11 @@ public class Server {
             this.serverRepo.updateVersionNumber(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSequenceNumber());
             this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(clientPublicKey), request.getRegisterSignature().toByteArray());
             this.serverRepo.receiveAmount(request.getMovementId(), "APPROVED", request.getMovementSignature().toByteArray(), request.getTimeStamp());
+
+            if(!nonces.containsKey(new String(clientPublicKey)))
+                nonces.put(new String(clientPublicKey), new ArrayList<>(request.getSequenceNumber()));
+            else
+                nonces.get(new String(clientPublicKey)).add(request.getSequenceNumber());
             
         }catch(GeneralSecurityException e){
             logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
@@ -455,11 +478,6 @@ public class Server {
 
     public auditResponse audit(ByteString clientPublicKey, int sequenceNumber) throws Exception{
     
-        List <Integer> values = nonces.get(new String(clientPublicKey.toByteArray()));
-        if(values != null && values.contains(sequenceNumber))
-            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
-
-        
         try{
             float balance = this.serverRepo.getBalance(Base64.getEncoder().encodeToString(clientPublicKey.toByteArray()));
             if (balance == -1)
@@ -488,10 +506,6 @@ public class Server {
             String hashReply = CryptographicFunctions.hashString(new String(replyBytes.toByteArray()));
             ByteString encryptedHashReply = ByteString.copyFrom(CryptographicFunctions
             .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
-        
-        
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(clientPublicKey.toByteArray()), nonce);
 
             auditResponse response = auditResponse.newBuilder().addAllConfirmedMovements(movements)
                         .setSequenceNumber(sequenceNumber + 1).setHashMessage(encryptedHashReply).build();
@@ -504,60 +518,11 @@ public class Server {
     }
 
 
-    public highestRegisterSequenceNumberResponse getHighestRegSeqNumber(ByteString clientPublicKey,
-     int sequenceNumber, ByteString hashMessage) throws Exception{
-
-        String clientPublicKeyString = Base64.getEncoder().encodeToString(clientPublicKey.toByteArray());
-        List <Integer> values = nonces.get(clientPublicKeyString);
-        if(values != null && values.contains(sequenceNumber))
-            throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
-
-        
-        try{
-            ByteArrayOutputStream messageBytes = new ByteArrayOutputStream();
-            messageBytes.write(clientPublicKey.toByteArray());
-            messageBytes.write(":".getBytes());
-            messageBytes.write(String.valueOf(sequenceNumber).getBytes());
-            
-            String hashMessageString = CryptographicFunctions.decrypt(clientPublicKey.toByteArray(), hashMessage.toByteArray());
-
-            if(!CryptographicFunctions.verifyMessageHash(messageBytes.toByteArray(), hashMessageString))
-                throw new ServerException(ErrorMessage.MESSAGE_INTEGRITY);
-
-            float balance = this.serverRepo.getBalance(clientPublicKeyString);
-            if (balance == -1)
-                throw new ServerException(ErrorMessage.NO_SUCH_USER);
-            int registerSequenceNumber = this.serverRepo.getVersionNumber(clientPublicKeyString);
-            byte[] registerSignature = this.serverRepo.getSignature(clientPublicKeyString);
-            
-
-            ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
-            replyBytes.write(String.valueOf(sequenceNumber + 1).getBytes());
-            
-            String hashReply = CryptographicFunctions.hashString(new String(replyBytes.toByteArray()));
-            ByteString encryptedHashReply = ByteString.copyFrom(CryptographicFunctions
-            .encrypt(CryptographicFunctions.getServerPrivateKey("../crypto/"), hashReply.getBytes()));
-        
-        
-            List<Integer> nonce = new ArrayList<>(sequenceNumber);
-            nonces.put(new String(clientPublicKey.toByteArray()), nonce);
-
-            highestRegisterSequenceNumberResponse response = highestRegisterSequenceNumberResponse.newBuilder().setBalance(balance)
-            .setRegisterSignature(ByteString.copyFrom(registerSignature)).setRegisterSequenceNumber(registerSequenceNumber)
-            .setSequenceNumber(sequenceNumber + 1).setHashMessage(encryptedHashReply).build();
-
-            return response;
-        }  
-        catch(GeneralSecurityException e){
-            logger.log("Exception with message: " + e.getMessage() + " and cause:" + e.getCause());
-            throw new ServerException(ErrorMessage.INVALID_KEY_PAIR);  
-        }
-    }
-
 
     public writeBackRegisterResponse writeBackRegister(ByteString publicKey, int registerSequenceNumber, ByteString registerSignature, float balance, int messageSequenceNumber, ByteString hashMessage) throws Exception{
-        List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
+        
         int highSeqNumber;
+        List <Integer> values = nonces.get(new String(publicKey.toByteArray()));
         if(values != null && values.contains(messageSequenceNumber))
             throw new ServerException(ErrorMessage.SEQUENCE_NUMBER);
 
@@ -587,6 +552,12 @@ public class Server {
                 this.serverRepo.updateSignature(Base64.getEncoder().encodeToString(publicKey.toByteArray()), registerSignature.toByteArray());
             }
 
+            
+            if(!nonces.containsKey(new String(publicKey.toByteArray())))
+                nonces.put(new String(publicKey.toByteArray()), new ArrayList<>(messageSequenceNumber));
+            else
+                nonces.get(new String(publicKey.toByteArray())).add(messageSequenceNumber);
+            
             writeBackRegisterResponse response = writeBackRegisterResponse.newBuilder().build();
             return response;
         }  

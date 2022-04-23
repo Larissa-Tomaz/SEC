@@ -123,19 +123,6 @@ message auditResponse{
 	bytes hashMessage = 3;
 }
 
-message highestRegisterSequenceNumberRequest{
-	bytes publicKeyClient = 1;
-	int32 sequenceNumber = 2;
-	bytes hashMessage = 3;
-}
-
-message highestRegisterSequenceNumberResponse{
-	float balance = 1;
-	int32 registerSequenceNumber = 2;
-	bytes registerSignature = 3;
-	int32 sequenceNumber = 4;
-	bytes hashMessage = 5;
-}
 
 message writeBackRegisterRequest{
 	bytes publicKey = 1;
@@ -172,7 +159,6 @@ service BFTBanking {
 	rpc checkMovement(checkMovementRequest) returns (checkMovementResponse);
 	rpc receiveAmount(receiveAmountRequest) returns (receiveAmountResponse);
 	rpc audit(auditRequest) returns (auditResponse);
-	rpc getHighestRegisterSequenceNumber (highestRegisterSequenceNumberRequest) returns (highestRegisterSequenceNumberResponse);
 	rpc writeBackRegister (writeBackRegisterRequest) returns (writeBackRegisterResponse);
 	rpc echo (echoRequest) returns (echoResponse);
 	rpc ready (readyRequest) returns (readyResponse);

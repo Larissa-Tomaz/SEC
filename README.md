@@ -84,29 +84,33 @@ and an instance (or more) of the client application.
 Start each server on a new terminal, we'll exemplify with 2 servers here:
 ```shell
 $ cd server
-$ mvn exec:java -Dexec.args="8090 R F B D" 
+$ mvn exec:java -Dexec.args="P R F B D" 
 ```
 ```shell
 $ cd server
-$ mvn exec:java -Dexec.args="8090 R1 F B D" 
+$ mvn exec:java -Dexec.args="P R1 F B D" 
 ```
-R->Port of the replica
+P->base port, must be the same in all replicas
 
-F->Max number of Byzantine faults, must be the same on all the servers
+R, R1->Port of the replica
+
+F->max number of Byzantine faults, must be the same on all the servers
 
 B->flag to set the server as Byzantine. 0->Normal 1->Byzantine
 
 D->flag to clean the database. 0-does not clean 1->clean
 
 ***R and R1 need to be sequential***
+***R must be bigger then P***
 
 
 Then, we can start one instance (or more) of the client, on a new terminal (or more):
 ```shell
 $ cd client
-$ mvn exec:java -Dexec.args="localhost 8090 F"
+$ mvn exec:java -Dexec.args="localhost P F"
 ```
-F->Max number of Byzantine faults, must be the same used on the servers
+P->port number, must be the same of the server
+F->max number of Byzantine faults, must be the same used on the servers
 
 ## Additional Information
 

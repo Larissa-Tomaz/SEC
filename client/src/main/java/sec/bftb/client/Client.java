@@ -164,7 +164,7 @@ public class Client {
         hashRegister = CryptographicFunctions.hashString("50.0:0");
         encryptedHashRegister = ByteString.copyFrom(CryptographicFunctions
         .encrypt(privateKey, hashRegister.getBytes()));
-        System.out.println(encryptedHashRegister+ "\n hashMessage" + encryptedHashMessage.size());
+        
 
 		openAccountRequest request = openAccountRequest.newBuilder()
         .setPublicKeyClient(ByteString.copyFrom(publicKeyBytes)).setRegisterSignature(encryptedHashRegister)
@@ -180,13 +180,10 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
+            
             do {
                 try{
                     serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -210,7 +207,7 @@ public class Client {
                 
                 checkByzantineFaultQuantity(byzantineResponsesCont);
 
-                System.out.println(response);
+                
                 if(response.getSequenceNumber() != sequenceNumber + 1){
                     logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                     byzantineResponsesCont++;
@@ -339,13 +336,10 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
+                    
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -371,7 +365,6 @@ public class Client {
                     
                     checkByzantineFaultQuantity(byzantineResponsesCont);
 
-                    System.out.println(response);
                     if(response.getSequenceNumber() != sequenceNumber + 1){
                         logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                         sendAmountResponses.remove(response);
@@ -562,13 +555,9 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs2.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs2.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs2.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs2.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -652,13 +641,9 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -685,8 +670,6 @@ public class Client {
                     
                     checkByzantineFaultQuantity(byzantineResponsesCont);
                     
-                    System.out.println(response);
-                    System.out.println("Signature size: " + response.getRegisterSignature().toByteArray().length);
                     if(response.getSequenceNumber() != sequenceNumber + 1){
                         logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                         checkAccountResponses.remove(response);
@@ -748,10 +731,11 @@ public class Client {
             
                 for(i=0; i<checkAccountResponses.size()-1; i++){//Check size of pendinglists from all valid replies to obtain majority of size 
                     sizeFrequencyAux = 0;
+                    isValid = true;
                     for(j=i+1; j<checkAccountResponses.size();j++){
                         if(checkAccountResponses.get(i).getPendingMovementsList().size() == checkAccountResponses.get(j).getPendingMovementsList().size()){
-                            for(n=0; n < checkAccountResponses.get(i).getPendingMovementsList().size(); n++){ //Obtain majority agreement of transferIDs for all trasnfers(might need to order lists by transferid before doing this cycle)
-                                if(checkAccountResponses.get(i).getPendingMovementsList().get(n).getMovementID() !=
+                            for(n=0; n < checkAccountResponses.get(i).getPendingMovementsList().size(); n++){ //Obtain majority agreement of transferIDs for all transfers
+                                if(checkAccountResponses.get(i).getPendingMovementsList().get(n).getMovementID() <
                                     checkAccountResponses.get(j).getPendingMovementsList().get(n).getMovementID())
                                     isValid = false;
                                     break;
@@ -779,9 +763,9 @@ public class Client {
                     System.out.println("Pending Movements: ");
                     ArrayList<Movement> orderedMovements = orderMovementByTimeStamp(checkAccountResponses.get(i).getPendingMovementsList());
                     for(Movement mov : orderedMovements)
-                        System.out.println(" -Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
+                        System.out.println("   - Movement " + mov.getMovementID() + ": " + mov.getAmount() + " (amount)");
                 }
-                System.out.println("\nYour current balance: " + balanceFinal);
+                System.out.println("\nCurrent balance: " + balanceFinal);
 
                 for(ServerFrontend frontend : frontends)
                     frontend.close();
@@ -863,13 +847,9 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -895,7 +875,6 @@ public class Client {
                     
                     checkByzantineFaultQuantity(byzantineResponsesCont);
 
-                    System.out.println(response);
                     if(response.getSequenceNumber() != sequenceNumber + 1){
                         logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                         receiveAmountResponses.remove(response);
@@ -1082,13 +1061,9 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs2.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs2.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs2.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs2.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -1162,13 +1137,9 @@ public class Client {
                 frontends.add(frontend);
             }
             
-            System.out.println("Sent all requests.");
             do {
                 try{
                     serverObs.wait(2000);
-                    System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                    System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                    System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                 }catch (InterruptedException e) {
                     System.out.println("Wait interrupted");
                     throw e;
@@ -1193,7 +1164,6 @@ public class Client {
                     
                     checkByzantineFaultQuantity(byzantineResponsesCont);
                     
-                    System.out.println(response);
                     if(response.getSequenceNumber() != sequenceNumber + 1){
                         logger.log("Invalid sequence number. Possible replay attack detected in one of the replica's reply.");
                         auditResponses.remove(response);
@@ -1233,10 +1203,11 @@ public class Client {
             
                 for(i=0; i<auditResponses.size()-1; i++){//Check size of confirmedlists from all valid replies to obtain majority of size 
                     sizeFrequencyAux = 0;
+                    isValid = true;
                     for(j=i+1; j<auditResponses.size();j++){
                         if(auditResponses.get(i).getConfirmedMovementsList().size() == auditResponses.get(j).getConfirmedMovementsList().size()){
-                            for(n=0; n < auditResponses.get(i).getConfirmedMovementsList().size(); n++){ //Obtain majority agreement of transferIDs for all trasnfers(might need to order lists by transferid before doing this cycle)
-                                if(auditResponses.get(i).getConfirmedMovementsList().get(n).getMovementID() !=
+                            for(n=0; n < auditResponses.get(i).getConfirmedMovementsList().size(); n++){ //Obtain majority agreement of transferIDs for all transfers
+                                if(auditResponses.get(i).getConfirmedMovementsList().get(n).getMovementID() <
                                     auditResponses.get(j).getConfirmedMovementsList().get(n).getMovementID())
                                     isValid = false;
                                     break;
@@ -1263,7 +1234,7 @@ public class Client {
                     System.out.println("Movement History:");
                     for(Movement mov : orderedMovements){
                         System.out.println("  -Movement " + mov.getMovementID() + ":");
-                        System.out.println("    < Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
+                        System.out.println("     < Status: " + mov.getStatus() + ", " + mov.getDirectionOfTransfer() + " amount: " + mov.getAmount() + " >");
                     }
                 }
 
@@ -1369,13 +1340,9 @@ public class Client {
                     frontends.add(frontend);
                 }
                 
-                System.out.println("Sent all requests.");
                 do {
                     try{
                         serverObs.wait(2000);
-                        System.out.println("ResponseCollector size: " + serverObs.getResponseCollector().size());
-                        System.out.println("LogicExceptionCollector size: " + serverObs.getLogicExceptionCollector().size());
-                        System.out.println("SystemExceptionCollector size: " + serverObs.getSystemExceptionCollector().size());
                     }catch (InterruptedException e) {
                         System.out.println("Wait interrupted");
                         throw e;

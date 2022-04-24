@@ -314,7 +314,7 @@ public class ServerRepo {
         }
     }
 
-    public int receiveAmount(int id, String newStatus, byte[] signatureMovement, long timeStamp) throws SQLException { //Change function to insert new row instead of updating
+    public int receiveAmount(int id, String newStatus, byte[] signatureMovement, long timeStamp) throws SQLException { 
         try {
             String query = "UPDATE movement SET transferStatus=? WHERE movementId=?";   
             String query2 = "UPDATE movement SET signatureMovement=? WHERE movementId=?";

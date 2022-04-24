@@ -280,7 +280,7 @@ public class Server {
     public checkAccountResponse check_account(ByteString clientPublicKey, int sequenceNumber) throws Exception{
         
         try{
-            //Obtain user's balance
+            
             String clientPublicKeyString = Base64.getEncoder().encodeToString(clientPublicKey.toByteArray());
             float balance = this.serverRepo.getBalance(clientPublicKeyString);
             if (balance == -1)
@@ -378,10 +378,7 @@ public class Server {
             balanceUpdated = receiverBalance + mov.getAmount();
 
 
-            //int flag = this.serverRepo.receiveAmount(transferID, "APPROVED", receiverBalance);
-            //if(flag == -1)
-              //  throw new ServerException(ErrorMessage.NO_SUCH_TRANSFER);
-
+    
             
             ByteArrayOutputStream replyBytes = new ByteArrayOutputStream();
             replyBytes.write(String.valueOf(mov).getBytes()); 
@@ -625,7 +622,7 @@ public class Server {
         if(!readies.containsKey(hashRequest))
             readies.put(hashRequest, 0);  
         
-        while(echos.get(hashRequest) < byzantineQuorum && readies.get(hashRequest) < byzantineQuorum){ //Introduce timeout after which server sends exception saying there was more than f different requests sent by the client
+        while(echos.get(hashRequest) < byzantineQuorum && readies.get(hashRequest) < byzantineQuorum){ 
             
             if(timeout>500)
                 throw new ServerException(ErrorMessage.BYZANTINE_CLIENT_OR_MAX_SERVER_FAILURES);

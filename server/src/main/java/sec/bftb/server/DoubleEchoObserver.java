@@ -11,11 +11,6 @@ public class DoubleEchoObserver<R> implements StreamObserver<R>{
 
     @Override
     public synchronized void onNext(R r) {
-        /*if(r.getClass().getSimpleName().equals("echoResponse"))
-            System.out.println("Received ECHO response");
-        else if(r.getClass().getSimpleName().equals("readyResponse")){
-            System.out.println("Received READY response");
-        }*/
     }
 
     @Override

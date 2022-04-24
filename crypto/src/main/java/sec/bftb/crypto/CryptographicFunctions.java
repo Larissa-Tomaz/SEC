@@ -40,7 +40,6 @@ public class CryptographicFunctions{
             file = new File("../crypto/keys/publicKeys/" + cont + "-PublicKey");
         } while(!file.createNewFile());
 
-        System.out.println("New file created: " + file.getName());
         os = new FileOutputStream(file);
         os.write(publicKey.getEncoded());
         os.close();
@@ -50,7 +49,6 @@ public class CryptographicFunctions{
             file = new File("../crypto/keys/privateKeys/" + rand + "-" + password + "-PrivateKey");
         } while(!file.createNewFile());
     
-        System.out.println("New file created: " + file.getName());
         os = new FileOutputStream(file);
         os.write(privateKey.getEncoded());
         os.close();

@@ -18,7 +18,6 @@ public class ServerFrontend {
         stub = BFTBankingGrpc.newStub(channel);
     }
 
-    //public PingResponse ping(PingRequest request) { return stub.withDeadlineAfter(7000, TimeUnit.MILLISECONDS).ping(request); }
 
     public void openAccount(openAccountRequest request, ServerObserver<openAccountResponse> serverObs) { stub.withDeadlineAfter(5000, TimeUnit.MILLISECONDS).openAccount(request,serverObs); }
 

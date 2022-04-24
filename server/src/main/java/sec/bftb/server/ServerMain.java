@@ -58,6 +58,8 @@ public class ServerMain {
 			
 		} catch (InterruptedException | IOException | ServerException e) {
 			logger.log("Error on server start: " + e.getMessage());
+		} catch (NumberFormatException e){
+			logger.log("Invalid Type of Arguments. All must be integers: basePort - serverPort - maxByzantineFaults - isByzantine(0=false) - clearDB(0=false)");
 		}
 		
 	}

@@ -50,11 +50,10 @@ Finally, you must install PostgreSQL, by running the following command:
 $ apt-get install postgresql postgresql-contrib
 ```
 
-This project relies on a database, so you must create one through the postgreSQL command line. Run the following commands:
+This project relies on a database, so you must reset the postgres default database password through the postgreSQL command line. Run the following commands:
 ```shell
-$ su -- postgres
-$ psql
-psql> CREATE DATABASE bankingservice;
+$ sudo -u postgres psql
+psql>ALTER USER postgres PASSWORD "sec2022";
 psql> \q
 ```
 

@@ -101,6 +101,7 @@ B->flag to set the server as Byzantine. 0->Normal 1->Byzantine
 D->flag to clean the database. 0-does not clean 1->clean
 
 ***R and R1 need to be sequential***
+
 ***R must be bigger then P***
 
 

@@ -11,8 +11,8 @@ open [password_receiver]
 
 Use the ids created before and the passwords and confirm that the accounts have been created and their balance is 50.0 (initial balance established), using the **check** command
 ```shell
-check [password_sender] [sender_id]
-check [password_receiver] [receiver_id]
+check [password_verifier] [verifier_id] [sender_id]
+check [password_verifier] [verifier_id] [sender_id]
 ```
 Now, send 25.0 from the sender to the receiver, using the **send** command
 ```shell
@@ -94,7 +94,7 @@ audit [receiver_id]
 ```
 
 ### 1 BYZANTINE SERVER TEST
-Assuming the rule 3f+1 servers to tolerate f byzantine server, first you have to start 4 servers with one of them being byzantine.
+Assuming the rule 3f+1 servers to tolerate f byzantine server, first you can start 4 servers with one of them being byzantine.
 Each one of this commands should be run in a different process at the server directory.
 ```shell
 mvn exec:java -Dexec.args="8090 8090 1 0 0"
@@ -124,7 +124,7 @@ Check if the changes were saved
 ```shell
 check [password_sender] [sender_id]
 ```
-Then, use the following command to transform the client in a byzantine client
+Then, use the following command to transform the client into a byzantine client
 ```shell
 byzantine
 ```

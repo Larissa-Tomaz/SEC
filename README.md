@@ -77,7 +77,7 @@ $ mvn clean install
 ```
 
 The project is now compiled and all the dependencies are installed.
-You will need to open two (or more) new terminals, in order to run the primary server
+You will need to open one (or more) new terminals, in order to run the server(s)
 and an instance (or more) of the client application.
 
 
@@ -92,7 +92,7 @@ $ mvn exec:java -Dexec.args="P R1 F B D"
 ```
 P->base port, must be the same in all replicas
 
-R, R1->Port of the replica
+R, R1->Port of the replica, must be incrementally sequential starting on base port P
 
 F->max number of Byzantine faults, must be the same on all the servers
 
@@ -102,15 +102,13 @@ D->flag to clean the database. 0-does not clean 1->clean
 
 ***R and R1 need to be sequential***
 
-***R must be bigger then P***
-
 
 Then, we can start one instance (or more) of the client, on a new terminal (or more):
 ```shell
 $ cd client
 $ mvn exec:java -Dexec.args="localhost P F"
 ```
-P->port number, must be the same of the server
+P->base port number, must be the same of the server's base port number
 F->max number of Byzantine faults, must be the same used on the servers
 
 ## Additional Information

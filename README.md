@@ -91,9 +91,13 @@ $ cd server
 $ mvn exec:java -Dexec.args="8090 R1 F B D" 
 ```
 R->Port of the replica
+
 F->Max number of Byzantine faults, must be the same on all the servers
+
 B->flag to set the server as Byzantine. 0->Normal 1->Byzantine
+
 D->flag to clean the database. 0-does not clean 1->clean
+
 ***R and R1 need to be sequential***
 
 

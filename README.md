@@ -80,39 +80,29 @@ The project is now compiled and all the dependencies are installed.
 You will need to open two (or more) new terminals, in order to run the primary server
 and an instance (or more) of the client application.
 
-It is important to outline that the primary server **must be started before** the client.
-Let's focus on the primary server now.
 
-You need to set 4 environment variables which will be used by the primary server, in order to connect to the database:
-```shell
-$ export DB_URL=jdbc:postgresql://localhost:5432/bankingservice
-$ export DB_USERNAME=postgres
-$ export DB_PASSWORD=<The password for this user>
-$ export DB_DIR=<The path to the schema/schema.sql file>
-```
-
-Once this is done, we can start the primary server, on a new terminal:
+Start each server on a new terminal, we'll exemplify with 2 servers here:
 ```shell
 $ cd server
-$ mvn exec:java
+$ mvn exec:java -Dexec.args="8090 R F B D" 
 ```
+```shell
+$ cd server
+$ mvn exec:java -Dexec.args="8090 R1 F B D" 
+```
+R->Port of the replica
+F->Max number of Byzantine faults, must be the same on all the servers
+B->flag to set the server as Byzantine. 0->Normal 1->Byzantine
+D->flag to clean the database. 0-does not clean 1->clean
+***R and R1 need to be sequential***
+
 
 Then, we can start one instance (or more) of the client, on a new terminal (or more):
 ```shell
 $ cd client
-$ mvn exec:java
+$ mvn exec:java -Dexec.args="localhost 8090 F"
 ```
-
-### Primary Server
-Change the environment variables with the details of the production environment:
-- Location of the database (host and port);
-- Username and password to access the database.
-
-Furthermore, the primary server's pom.xml file must be changed.
-
-### Client
-The client's pom.xml file must be changed as well, accordingly. The `server.host` and `server.port` properties
-must be changed to the ones where the primary server is running on.
+F->Max number of Byzantine faults, must be the same used on the servers
 
 ## Additional Information
 
